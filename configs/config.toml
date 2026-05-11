@@ -1,0 +1,53 @@
+[data]
+raw_path       = "data/raw/flights.csv"
+processed_path = "data/processed/flights_clean.parquet"
+test_size      = 0.2
+val_size       = 0.1
+random_state   = 42
+
+[features]
+target      = "fare"
+categorical = ["airline", "source_city", "destination_city", "departure_time", "arrival_time", "travel_class"]
+numerical   = ["duration", "days_left"]
+
+[features.ordinal]
+stops = ["zero", "one", "two_or_more"]
+
+[models.linear_regression]
+# no hyperparameters
+
+[models.ridge]
+alpha = [0.1, 1.0, 10.0, 100.0]
+
+[models.lasso]
+alpha      = [0.01, 0.1, 1.0, 10.0]
+max_iter   = 5_000
+
+[models.random_forest]
+n_estimators = 200
+max_depth    = 15
+random_state = 42
+
+[models.gradient_boosting]
+n_estimators  = 300
+learning_rate = 0.05
+max_depth     = 6
+random_state  = 42
+
+[models.xgboost]
+n_estimators     = 500
+learning_rate    = 0.03
+max_depth        = 7
+subsample        = 0.8
+colsample_bytree = 0.8
+random_state     = 42
+
+[evaluation]
+cv_folds = 5
+scoring  = "neg_root_mean_squared_error"
+metrics  = ["rmse", "mae", "r2", "mape"]
+
+[tuning]
+n_trials   = 100
+timeout    = 3600
+study_name = "flight_fare_optuna"
