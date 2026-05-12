@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from typing import Any, Callable
 
-from features import cleaning, engineering, exploration
+from features import cleaning, eda, engineering, exploration
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -13,6 +13,7 @@ STAGES: dict[str, Callable[[dict[str, Any]], None]] = {
     "explore":  exploration.run,
     "clean":    cleaning.run,
     "engineer": engineering.run,
+    "eda":      eda.run,
 }
 
 

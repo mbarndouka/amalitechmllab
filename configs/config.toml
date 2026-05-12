@@ -57,6 +57,10 @@ subsample        = 0.8
 colsample_bytree = 0.8
 random_state     = 42
 
+[eda]
+group_cols         = ["airline", "source", "destination", "seasonality"]
+correlation_method = "pearson"
+
 [evaluation]
 cv_folds = 5
 scoring  = "neg_root_mean_squared_error"
