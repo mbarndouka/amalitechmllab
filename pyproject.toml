@@ -20,6 +20,7 @@ dependencies = [
     "lightgbm>=4.1",
     "optuna>=3.4",
     "shap>=0.44",
+    "ipykernel>=7.2.0",
 ]
 
 [project.optional-dependencies]

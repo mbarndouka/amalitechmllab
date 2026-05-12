@@ -1,6 +1,6 @@
 [data]
-raw_path       = "data/raw/flights.csv"
-processed_path = "data/processed/flights_clean.parquet"
+raw_path       = "data/raw/Flight_Price_Dataset_of_Bangladesh.csv"
+processed_path = "data/processed/Flight_Price_Dataset_of_Bangladesh.parquet"
 test_size      = 0.2
 val_size       = 0.1
 random_state   = 42
