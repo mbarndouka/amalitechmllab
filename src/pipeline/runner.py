@@ -5,6 +5,7 @@ import time
 from typing import Any, Callable
 
 from features import cleaning, eda, engineering, exploration
+from models import trainer
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -14,6 +15,7 @@ STAGES: dict[str, Callable[[dict[str, Any]], None]] = {
     "clean":    cleaning.run,
     "engineer": engineering.run,
     "eda":      eda.run,
+    "train":    trainer.run,
 }
 
 
