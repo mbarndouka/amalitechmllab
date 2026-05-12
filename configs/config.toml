@@ -1,17 +1,32 @@
 [data]
 raw_path       = "data/raw/Flight_Price_Dataset_of_Bangladesh.csv"
 processed_path = "data/processed/Flight_Price_Dataset_of_Bangladesh.parquet"
+features_dir   = "data/features"
 test_size      = 0.2
 val_size       = 0.1
 random_state   = 42
 
+[cleaning]
+missingness_drop_threshold  = 0.5
+numerical_impute_strategy   = "median"
+categorical_impute_value    = "Unknown"
+leakage_columns             = ["Base Fare (BDT)", "Tax & Surcharge (BDT)"]
+
 [features]
 target      = "fare"
-categorical = ["airline", "source_city", "destination_city", "departure_time", "arrival_time", "travel_class"]
-numerical   = ["duration", "days_left"]
+redundant   = ["source_name", "destination_name"]
+categorical = [
+    "airline", "source", "destination",
+    "aircraft_type", "travel_class", "booking_source", "seasonality",
+]
+numerical   = [
+    "duration", "days_left", "stopovers",
+    "departure_hour", "departure_day_of_week", "departure_month",
+    "arrival_hour",   "arrival_day_of_week",   "arrival_month",
+]
 
 [features.ordinal]
-stops = ["zero", "one", "two_or_more"]
+stopovers = ["Direct", "1 Stop", "2 Stops"]
 
 [models.linear_regression]
 # no hyperparameters
