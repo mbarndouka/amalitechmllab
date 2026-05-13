@@ -1,4 +1,23 @@
-"""Interpretation plots for regression models — notebook use only."""
+"""Interpretation plots for regression models — notebook use only.
+
+Plot inventory
+--------------
+Existing (Step 4–5):
+  plot_actual_vs_predicted   — scatter of y_true vs y_pred
+  plot_residuals             — residual analysis (3-panel)
+  plot_coefficients          — linear model coefficient bar chart
+  plot_metrics_comparison    — bar chart of metrics across splits
+  plot_regularization_path   — Ridge/Lasso alpha sweep
+  plot_learning_curve        — bias-variance learning curve
+  plot_model_comparison      — all models vs R²/MAE/RMSE
+
+New (Step 6 — interpretation):
+  plot_feature_importance    — tree-model Gini importances
+  plot_airline_pricing       — boxplot fare by airline
+  plot_seasonal_pricing      — bar chart fare by season
+  plot_route_heatmap         — heatmap median fare by source→destination
+  plot_days_left_fare        — line chart booking window vs fare
+"""
 from __future__ import annotations
 
 import numpy as np
@@ -253,5 +272,212 @@ def plot_model_comparison(
             )
 
     plt.suptitle(f"Model Comparison — {split.capitalize()} Split", fontsize=13, fontweight="bold")
+    plt.tight_layout()
+    plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Step 6 — Interpretation plots
+# ---------------------------------------------------------------------------
+
+def plot_feature_importance(
+    importance_df: "pd.DataFrame",
+    model_name: str,
+    top_n: int = 20,
+) -> None:
+    """Horizontal bar chart of tree-model feature importances.
+
+    WHY HORIZONTAL BARS: Feature names are long strings. Horizontal layout
+    lets them be readable without rotation. Sorted ascending so the longest
+    bar is at the top (natural reading order: most important first).
+
+    WHY ONLY TREE MODELS: Linear model coefficients are signed (can be
+    negative), so use plot_coefficients() for those instead.
+    """
+    import matplotlib.pyplot as plt
+
+    top = importance_df.head(top_n).sort_values("abs_importance")
+
+    fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.4)))
+    ax.barh(top["feature"], top["abs_importance"], color="#2ecc71", alpha=0.85)
+    ax.set_xlabel("Feature Importance (total MSE reduction, normalised)")
+    ax.set_title(f"{model_name.replace('_', ' ').title()} — Top {top_n} Feature Importances")
+    ax.axvline(0, color="black", linewidth=0.5)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_airline_pricing(df: "pd.DataFrame") -> None:
+    """Box-and-whisker plot of fare distribution per airline, sorted by median.
+
+    WHY BOXPLOT not bar chart: A bar chart of median loses distribution info.
+    Boxplots show median (orange line), IQR (box), and whiskers (1.5×IQR).
+    showfliers=False removes extreme outliers so the box scaling is readable.
+
+    WHY SORTED BY MEDIAN: Puts premium airlines on the left, budget on right —
+    the viewer immediately sees the pricing tier structure.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+
+    order  = df.groupby("airline")["fare"].median().sort_values(ascending=False).index.tolist()
+    data   = [df[df["airline"] == a]["fare"].values for a in order]
+    colors = plt.cm.RdYlGn_r(np.linspace(0.1, 0.9, len(order)))  # type: ignore[attr-defined]
+    fmt    = mticker.FuncFormatter(lambda x, _: f"{x/1000:.0f}k")
+
+    fig, ax = plt.subplots(figsize=(16, 6))
+    bp = ax.boxplot(data, labels=order, patch_artist=True, showfliers=False,
+                    medianprops={"color": "black", "linewidth": 2})
+
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.72)
+
+    ax.set_xlabel("Airline")
+    ax.set_ylabel("Fare (BDT)")
+    ax.set_title("Fare Distribution by Airline — sorted by median (no outliers shown)")
+    ax.yaxis.set_major_formatter(fmt)
+    plt.xticks(rotation=45, ha="right", fontsize=9)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_seasonal_pricing(df: "pd.DataFrame") -> None:
+    """Bar chart of median fare per season with percentage-above-Regular labels.
+
+    WHY SHOW PREMIUM %: Raw BDT numbers are less actionable than "Eid is X% more
+    expensive than Regular." The annotation makes the insight self-explanatory.
+
+    WHY THIS COLOR SCHEME: Red for peak, blue for off-peak visually encodes
+    urgency — standard in pricing/heat dashboards.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+
+    order   = ["Eid", "Hajj", "Winter Holidays", "Regular"]
+    palette = {"Eid": "#e74c3c", "Hajj": "#e67e22",
+               "Winter Holidays": "#3498db", "Regular": "#2ecc71"}
+
+    seasonal = (
+        df.groupby("seasonality")["fare"]
+        .median()
+        .reindex(order)
+    )
+    base = seasonal["Regular"]
+    fmt  = mticker.FuncFormatter(lambda x, _: f"{x/1000:.0f}k")
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    bars = ax.bar(
+        seasonal.index,
+        seasonal.values,
+        color=[palette[s] for s in seasonal.index],
+        alpha=0.85,
+        width=0.55,
+    )
+    for bar, (season, val) in zip(bars, seasonal.items()):
+        pct = (val / base - 1) * 100
+        label = f"BDT {val/1000:.1f}k\n({pct:+.0f}%)" if season != "Regular" else f"BDT {val/1000:.1f}k\n(baseline)"
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() * 1.01,
+            label,
+            ha="center", va="bottom", fontsize=10, fontweight="bold",
+        )
+
+    ax.set_xlabel("Season")
+    ax.set_ylabel("Median Fare (BDT)")
+    ax.set_title("Median Fare by Seasonality — % premium over Regular season")
+    ax.yaxis.set_major_formatter(fmt)
+    ax.set_ylim(0, seasonal.max() * 1.18)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_route_heatmap(df: "pd.DataFrame") -> None:
+    """Heatmap of median fare: rows = source airports, cols = destination airports.
+
+    WHY HEATMAP: A 2D matrix lets us see all source→destination combinations at
+    once. Colour instantly reveals expensive routes (dark) vs cheap ones (light).
+
+    NaN cells = no flights on that route in the dataset (not every combination
+    exists). We mask them white so they don't mislead.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+
+    pivot = df.pivot_table(values="fare", index="source", columns="destination", aggfunc="median")
+
+    fig, ax = plt.subplots(figsize=(18, 6))
+    masked = np.ma.masked_invalid(pivot.values.astype(float))
+    cmap = plt.cm.YlOrRd  # type: ignore[attr-defined]
+    cmap.set_bad("whitesmoke")
+    im = ax.imshow(masked, cmap=cmap, aspect="auto")
+
+    ax.set_xticks(range(len(pivot.columns)))
+    ax.set_yticks(range(len(pivot.index)))
+    ax.set_xticklabels(pivot.columns, rotation=60, ha="right", fontsize=8)
+    ax.set_yticklabels(pivot.index, fontsize=9)
+    ax.set_xlabel("Destination")
+    ax.set_ylabel("Source")
+
+    for i in range(len(pivot.index)):
+        for j in range(len(pivot.columns)):
+            val = pivot.values[i, j]
+            if not np.isnan(val):
+                text_color = "white" if val > np.nanpercentile(pivot.values, 70) else "black"
+                ax.text(j, i, f"{val/1000:.0f}k",
+                        ha="center", va="center", fontsize=6, color=text_color)
+
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label("Median Fare (BDT)")
+    cbar.formatter = mticker.FuncFormatter(lambda x, _: f"{x/1000:.0f}k")
+    cbar.update_ticks()
+
+    ax.set_title("Median Fare Heatmap — Source Airport × Destination Airport\n"
+                 "(white cells = no flights on that route)")
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_days_left_fare(df: "pd.DataFrame") -> None:
+    """Line chart of median fare vs booking window (days before departure).
+
+    WHY BUCKETS not scatter: Raw scatter of days_left vs fare is a blob —
+    too many points. Bucketing into windows (e.g., 0-7, 8-14 days) and
+    plotting medians reveals the actual trend clearly.
+
+    KEY INSIGHT THIS REVEALS: Is there a U-shaped curve?
+    (last-minute expensive | 30-60 days cheapest | very early also rises)
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+
+    bins   = [0,   7,  14,  30,  60,  90, 180, 365, 9999]
+    labels = ["0-7", "8-14", "15-30", "31-60", "61-90", "91-180", "181-365", "365+"]
+
+    df = df.copy()
+    df["booking_window"] = pd.cut(df["days_left"], bins=bins, labels=labels, right=True)
+
+    stats = (
+        df.groupby("booking_window", observed=True)["fare"]
+        .agg(median="median", q25=lambda x: x.quantile(0.25), q75=lambda x: x.quantile(0.75))
+        .reset_index()
+    )
+
+    x    = range(len(stats))
+    fmt  = mticker.FuncFormatter(lambda v, _: f"{v/1000:.0f}k")
+
+    fig, ax = plt.subplots(figsize=(11, 5))
+    ax.plot(x, stats["median"], "o-", color="#2980b9", linewidth=2.5, markersize=7, label="Median fare")
+    ax.fill_between(x, stats["q25"], stats["q75"], alpha=0.2, color="#2980b9", label="IQR (25th–75th %ile)")
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(stats["booking_window"], fontsize=9)
+    ax.set_xlabel("Days Before Departure (booking window)")
+    ax.set_ylabel("Fare (BDT)")
+    ax.set_title("How Booking Timing Affects Fare\n"
+                 "Earlier booking = lower fare? (Look for U-shape or monotone drop)")
+    ax.yaxis.set_major_formatter(fmt)
+    ax.legend(fontsize=9)
     plt.tight_layout()
     plt.show()

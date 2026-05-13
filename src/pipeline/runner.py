@@ -5,18 +5,32 @@ import time
 from typing import Any, Callable
 
 from features import cleaning, eda, engineering, exploration
+from interpretation import importance, insights
 from models import advanced, trainer
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+
+def _run_interpret(cfg: dict[str, Any]) -> None:
+    """Combine importance extraction + business insights into one pipeline stage.
+
+    WHY ONE STAGE: Both sub-tasks read from artifacts produced by 'advanced' stage
+    (models/ and data/processed/). Grouping them means `run_all` runs them together
+    without needing the user to call two stages separately.
+    """
+    importance.run(cfg)
+    insights.run(cfg)
+
+
 STAGES: dict[str, Callable[[dict[str, Any]], None]] = {
-    "explore":  exploration.run,
-    "clean":    cleaning.run,
-    "engineer": engineering.run,
-    "eda":      eda.run,
-    "train":    trainer.run,
-    "advanced": advanced.run,
+    "explore":   exploration.run,
+    "clean":     cleaning.run,
+    "engineer":  engineering.run,
+    "eda":       eda.run,
+    "train":     trainer.run,
+    "advanced":  advanced.run,
+    "interpret": _run_interpret,
 }
 
 
