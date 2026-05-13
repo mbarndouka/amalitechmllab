@@ -14,6 +14,7 @@ leakage_columns             = ["Base Fare (BDT)", "Tax & Surcharge (BDT)"]
 
 [features]
 target      = "fare"
+log_target  = true
 redundant   = ["source_name", "destination_name"]
 categorical = [
     "airline", "source", "destination",
@@ -24,6 +25,9 @@ numerical   = [
     "departure_hour", "departure_day_of_week", "departure_month",
     "arrival_hour",   "arrival_day_of_week",   "arrival_month",
 ]
+log_numerics      = true
+log_numeric_cols  = ["duration", "days_left"]
+target_encode_cols = ["route"]
 
 [features.ordinal]
 stopovers = ["Direct", "1 Stop", "2 Stops"]

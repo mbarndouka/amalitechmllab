@@ -111,7 +111,7 @@ def impute_missing(
 ) -> pd.DataFrame:
     fill_values = {
         col: (
-            df[col].median() if numerical_strategy == "median" else df[col].mean()
+            (df[col].median() if numerical_strategy == "median" else df[col].mean())
             if pd.api.types.is_numeric_dtype(df[col])
             else categorical_fill
         )

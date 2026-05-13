@@ -140,6 +140,9 @@ def fit_and_scale(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, StandardScaler]:
     present = [c for c in num_cols if c in X_train.columns]
     scaler  = StandardScaler()
+    if not present:
+        logger.info("StandardScaler: no matching numerical columns — skipping.")
+        return X_train, X_val, X_test, scaler
     scaler.fit(X_train[present])
 
     def _apply(X: pd.DataFrame) -> pd.DataFrame:

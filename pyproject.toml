@@ -23,6 +23,7 @@ dependencies = [
     "ipykernel>=7.2.0",
     "pyarrow>=15.0",
     "jinja2>=3.1.6",
+    "pytest>=9.0.3",
 ]
 
 [project.optional-dependencies]
@@ -67,3 +68,8 @@ addopts = "--cov=src --cov-report=term-missing -q"
 
 [tool.coverage.run]
 omit = ["tests/*", "notebooks/*"]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.1.0",
+]
