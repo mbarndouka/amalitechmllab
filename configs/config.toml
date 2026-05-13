@@ -38,6 +38,12 @@ alpha = [0.1, 1.0, 10.0, 100.0]
 alpha      = [0.01, 0.1, 1.0, 10.0]
 max_iter   = 5_000
 
+[models.decision_tree]
+max_depth        = [3, 5, 10, 15, 20]
+min_samples_split = [2, 5, 10]
+min_samples_leaf  = [1, 2, 4]
+random_state     = 42
+
 [models.random_forest]
 n_estimators = 200
 max_depth    = 15
