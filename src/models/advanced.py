@@ -8,10 +8,11 @@ from typing import Any
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, StackingRegressor
 from sklearn.linear_model import Lasso, Ridge
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_score
 from sklearn.tree import DecisionTreeRegressor
+from xgboost import XGBRegressor
 
 from evaluation.metrics import compute_metrics, log_metrics
 from models.trainer import load_features
@@ -46,10 +47,15 @@ def _random_search(estimator, param_dist: dict, X, y, cv: int, n_iter: int, seed
     return rs
 
 
-def _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, name: str) -> dict[str, dict]:
+def _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, name: str,
+              log_target: bool = False) -> dict[str, dict]:
     results: dict[str, dict] = {}
     for split, X, y in [("train", X_train, y_train), ("val", X_val, y_val), ("test", X_test, y_test)]:
-        m = compute_metrics(y, model.predict(X))
+        preds = model.predict(X)
+        if log_target:
+            preds = np.expm1(preds)
+            y     = np.expm1(y)
+        m = compute_metrics(y, preds)
         log_metrics(m, f"{name}/{split}")
         results[split] = m
     return results
@@ -96,18 +102,40 @@ def train_random_forest(X_train, y_train, cfg: dict, cv: int) -> tuple[RandomFor
     rf_cfg = cfg.get("models", {}).get("random_forest", {})
     seed = rf_cfg.get("random_state", 42)
     param_dist = {
-        "n_estimators": [100, 200],
-        "max_depth":    [10, 15, 20, None],
-        "min_samples_split": [2, 5],
-        "max_features": ["sqrt", 0.5],
+        "n_estimators":      [100, 200, 300],
+        "max_depth":         [8, 10, 15, 20, None],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf":  [1, 2, 4],
+        "max_features":      ["sqrt", 0.5, 0.7],
     }
-    logger.info("RandomForest RandomizedSearchCV  n_iter=8  cv=%d", cv)
+    n_iter = 20
+    logger.info("RandomForest RandomizedSearchCV  n_iter=%d  cv=%d", n_iter, cv)
     rs = _random_search(
         RandomForestRegressor(random_state=seed, n_jobs=-1),
-        param_dist, X_train, y_train, cv, n_iter=8, seed=seed,
+        param_dist, X_train, y_train, cv, n_iter=n_iter, seed=seed,
     )
-    logger.info("Best params=%s  cv_rmse=%.0f", rs.best_params_, -rs.best_score_)
+    logger.info("Best params=%s  cv_rmse=%.4f", rs.best_params_, -rs.best_score_)
     return rs.best_estimator_, rs.best_params_
+
+
+def train_xgboost(X_train, y_train, X_val, y_val, cfg: dict) -> tuple[XGBRegressor, dict]:
+    xgb_cfg = cfg.get("models", {}).get("xgboost", {})
+    params = {
+        "n_estimators":     xgb_cfg.get("n_estimators", 500),
+        "learning_rate":    xgb_cfg.get("learning_rate", 0.03),
+        "max_depth":        xgb_cfg.get("max_depth", 7),
+        "subsample":        xgb_cfg.get("subsample", 0.8),
+        "colsample_bytree": xgb_cfg.get("colsample_bytree", 0.8),
+        "random_state":     xgb_cfg.get("random_state", 42),
+        "n_jobs":           -1,
+        "verbosity":        0,
+    }
+    logger.info("XGBoost  params=%s  early_stopping_rounds=50", params)
+    model = XGBRegressor(**params, early_stopping_rounds=50, eval_metric="rmse")
+    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+    best_iter = model.best_iteration
+    logger.info("XGBoost best_iteration=%d", best_iter)
+    return model, {**params, "best_iteration": best_iter}
 
 
 def train_gradient_boosting(X_train, y_train, cfg: dict) -> tuple[GradientBoostingRegressor, dict]:
@@ -124,6 +152,42 @@ def train_gradient_boosting(X_train, y_train, cfg: dict) -> tuple[GradientBoosti
     model.fit(X_train, y_train)
     logger.info("GradientBoosting training complete.")
     return model, params
+
+
+def train_stacking(X_train, y_train, cfg: dict) -> tuple[StackingRegressor, dict]:
+    """Stack RF + GB + XGBoost with Ridge meta-learner (cv=3 for speed).
+
+    WHY: Each base model captures different patterns. Ridge meta-learner learns
+    optimal blend weights. passthrough=False keeps meta-learner input clean.
+    """
+    seed = 42
+    base_estimators = [
+        ("rf",  RandomForestRegressor(
+            n_estimators=200, max_depth=8, min_samples_leaf=4,
+            max_features=0.7, random_state=seed, n_jobs=-1,
+        )),
+        ("gb",  GradientBoostingRegressor(
+            n_estimators=200, learning_rate=0.05, max_depth=5,
+            subsample=0.8, random_state=seed,
+        )),
+        ("xgb", XGBRegressor(
+            n_estimators=300, learning_rate=0.05, max_depth=6,
+            subsample=0.8, colsample_bytree=0.8,
+            random_state=seed, n_jobs=-1, verbosity=0,
+        )),
+    ]
+    meta = Ridge(alpha=1.0)
+    stacker = StackingRegressor(
+        estimators=base_estimators,
+        final_estimator=meta,
+        cv=3,
+        n_jobs=-1,
+        passthrough=False,
+    )
+    logger.info("Stacking: RF + GB + XGB → Ridge meta-learner  cv=3")
+    stacker.fit(X_train, y_train)
+    logger.info("Stacking training complete.")
+    return stacker, {"base_models": ["rf", "gb", "xgb"], "meta": "ridge", "cv": 3}
 
 
 # ---------------------------------------------------------------------------
@@ -153,16 +217,20 @@ def build_comparison_table(
 # ---------------------------------------------------------------------------
 
 def run(cfg: dict[str, Any]) -> None:
-    data_cfg    = cfg.get("data", {})
-    eval_cfg    = cfg.get("evaluation", {})
+    data_cfg     = cfg.get("data", {})
+    eval_cfg     = cfg.get("evaluation", {})
+    features_cfg = cfg.get("features", {})
     features_dir = data_cfg.get("features_dir", "data/features")
     cv           = eval_cfg.get("cv_folds", 5)
+    log_target   = bool(features_cfg.get("log_target", False))
     models_dir   = Path("models")
     reports_dir  = Path("reports")
     models_dir.mkdir(exist_ok=True)
     reports_dir.mkdir(exist_ok=True)
 
     logger.info("━━━━━━  Step 5: Advanced Modeling & Optimization  ━━━━━━")
+    if log_target:
+        logger.info("log_target=True — metrics computed in original BDT scale via expm1")
 
     X_train, X_val, X_test, y_train, y_val, y_test = load_features(features_dir)
 
@@ -185,12 +253,15 @@ def run(cfg: dict[str, Any]) -> None:
         ("decision_tree",      lambda: train_decision_tree(X_train, y_train, cfg, cv)),
         ("random_forest",      lambda: train_random_forest(X_train, y_train, cfg, cv)),
         ("gradient_boosting",  lambda: train_gradient_boosting(X_train, y_train, cfg)),
+        ("xgboost",            lambda: train_xgboost(X_train, y_train, X_val, y_val, cfg)),
+        ("stacking",           lambda: train_stacking(X_train, y_train, cfg)),
     ]
 
     for name, train_fn in trainers:
         logger.info("── Training: %s ──", name)
         model, best_params = train_fn()
-        metrics = _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, name)
+        metrics = _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, name,
+                            log_target=log_target)
         joblib.dump(model, models_dir / f"{name}.pkl")
         all_results[name] = {"metrics": metrics, "best_params": best_params}
         logger.info("Saved → models/%s.pkl", name)

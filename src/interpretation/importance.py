@@ -75,6 +75,7 @@ _EXTRACTORS = {
     "decision_tree":     _tree_importance,
     "random_forest":     _tree_importance,
     "gradient_boosting": _tree_importance,
+    "xgboost":           _tree_importance,
 }
 
 

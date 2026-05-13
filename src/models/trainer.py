@@ -55,11 +55,19 @@ def evaluate_all_splits(
     y_train: np.ndarray,
     y_val: np.ndarray,
     y_test: np.ndarray,
+    log_target: bool = False,
 ) -> dict[str, dict[str, float]]:
-    """Evaluate model on all three splits and log results."""
+    """Evaluate model on all three splits and log results.
+
+    log_target: when True, predictions and y are in log-scale — inverse-transform
+    with expm1 before computing metrics so RMSE/MAE are in original BDT units.
+    """
     results: dict[str, dict[str, float]] = {}
     for name, X, y in [("train", X_train, y_train), ("val", X_val, y_val), ("test", X_test, y_test)]:
         preds = model.predict(X)
+        if log_target:
+            preds = np.expm1(preds)
+            y     = np.expm1(y)
         m = compute_metrics(y, preds)
         log_metrics(m, name)
         results[name] = m
@@ -97,19 +105,24 @@ def save_artifacts(
 
 def run(cfg: dict[str, Any]) -> None:
     """Stage entry point — train baseline linear regression and save artifacts."""
-    data_cfg  = cfg.get("data", {})
+    data_cfg     = cfg.get("data", {})
+    features_cfg = cfg.get("features", {})
     features_dir = data_cfg.get("features_dir", "data/features")
+    log_target   = bool(features_cfg.get("log_target", False))
     models_dir   = "models"
     reports_dir  = "reports"
 
     logger.info("━━━━━━  Model Training: Linear Regression Baseline  ━━━━━━")
+    if log_target:
+        logger.info("log_target=True — metrics will be computed in original BDT scale via expm1")
 
     X_train, X_val, X_test, y_train, y_val, y_test = load_features(features_dir)
 
     model = train_linear_regression(X_train, y_train)
 
     logger.info("── Evaluation ──")
-    metrics = evaluate_all_splits(model, X_train, X_val, X_test, y_train, y_val, y_test)
+    metrics = evaluate_all_splits(model, X_train, X_val, X_test, y_train, y_val, y_test,
+                                  log_target=log_target)
 
     # Gap check — flag possible overfitting
     train_r2 = metrics["train"]["r2"]

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -154,6 +155,66 @@ def fit_and_scale(
 
 # ── Orchestrator ───────────────────────────────────────────────────────────────
 
+def add_route_feature(df: pd.DataFrame) -> pd.DataFrame:
+    """Create route = source + '_' + destination before OHE.
+
+    WHY: Source and destination encoded separately miss the interaction.
+    DAC→LHR is expensive; DAC→DEL is cheap. A combined route column lets
+    tree models split directly on the specific route rather than inferring
+    it from two separate boolean columns.
+    """
+    if "source" in df.columns and "destination" in df.columns:
+        df = df.copy()
+        df["route"] = df["source"] + "_" + df["destination"]
+        logger.info("Route feature added: %d unique routes", df["route"].nunique())
+    return df
+
+
+def log_transform_numerics(df: pd.DataFrame, cols: tuple[str, ...]) -> pd.DataFrame:
+    """Apply log1p to right-skewed numerical columns (clips negatives to 0 first)."""
+    df = df.copy()
+    for col in cols:
+        if col in df.columns:
+            df[col] = np.log1p(df[col].clip(lower=0))
+            logger.info("log1p applied to '%s'", col)
+    return df
+
+
+def target_encode(
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_val: pd.DataFrame,
+    X_test: pd.DataFrame,
+    cols: tuple[str, ...],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Replace high-cardinality categorical cols with target mean (train-only stats → no leakage).
+
+    WHY: Route has 100+ OHE columns but is best represented as one numeric
+    encoding the average fare for that route. Tree models split on it directly.
+    Unknown categories (unseen in train) fall back to global mean.
+    """
+    global_mean = float(y_train.mean())
+    X_train = X_train.copy()
+    X_val   = X_val.copy()
+    X_test  = X_test.copy()
+
+    for col in cols:
+        if col not in X_train.columns:
+            logger.warning("target_encode: column '%s' not in X_train — skipping", col)
+            continue
+        means = y_train.groupby(X_train[col]).mean()
+        te_col = f"{col}_te"
+        X_train[te_col] = X_train[col].map(means).fillna(global_mean)
+        X_val[te_col]   = X_val[col].map(means).fillna(global_mean)
+        X_test[te_col]  = X_test[col].map(means).fillna(global_mean)
+        X_train.drop(columns=[col], inplace=True)
+        X_val.drop(columns=[col], inplace=True)
+        X_test.drop(columns=[col], inplace=True)
+        logger.info("Target-encoded '%s' → '%s'  (%d unique values)", col, te_col, len(means))
+
+    return X_train, X_val, X_test
+
+
 def engineer(df: pd.DataFrame, cfg: dict[str, Any]) -> FeatureSet:
     """Run full feature engineering pipeline. Returns immutable FeatureSet."""
     data_cfg     = cfg.get("data",     {})
@@ -161,9 +222,13 @@ def engineer(df: pd.DataFrame, cfg: dict[str, Any]) -> FeatureSet:
 
     # all column lists are config-authoritative; module constants are fallbacks
     target       = str(features_cfg.get("target",     TARGET))
+    log_target   = bool(features_cfg.get("log_target", False))
     redundant    = tuple(features_cfg.get("redundant",    list(REDUNDANT_COLUMNS)))
     categorical  = tuple(features_cfg.get("categorical",  list(CATEGORICAL_COLUMNS)))
     numerical    = tuple(features_cfg.get("numerical",    list(NUMERICAL_COLUMNS)))
+    log_numerics      = bool(features_cfg.get("log_numerics", False))
+    log_numeric_cols  = tuple(features_cfg.get("log_numeric_cols", ["duration", "days_left"]))
+    target_encode_cols = tuple(features_cfg.get("target_encode_cols", []))
     test_size    = float(data_cfg.get("test_size",    _DEFAULT_TEST_SIZE))
     val_size     = float(data_cfg.get("val_size",     _DEFAULT_VAL_SIZE))
     random_state = int(data_cfg.get("random_state",   _DEFAULT_RANDOM_STATE))
@@ -171,20 +236,43 @@ def engineer(df: pd.DataFrame, cfg: dict[str, Any]) -> FeatureSet:
     # 1 — drop verbose text columns redundant with IATA codes
     df = drop_redundant_columns(df, redundant)
 
-    # 2 — one-hot encode categorical columns
-    df = one_hot_encode(df, categorical)
+    # 2 — add route interaction feature (source_destination combination)
+    df = add_route_feature(df)
 
-    # 3 — separate features from target
+    # 3 — one-hot encode categorical columns + new route column
+    ohe_cols = tuple(c for c in categorical + ("route",) if c not in target_encode_cols)
+    df = one_hot_encode(df, ohe_cols)
+
+    # 4 — separate features from target
     X, y = split_features_target(df, target)
     feature_names = tuple(X.columns)
     logger.info("Feature matrix: %d rows × %d features", *X.shape)
 
-    # 4 — stratified-free random split into train / val / test
+    # 5 — log-transform target to reduce right-skew (fare skewness=1.58 → -0.17)
+    if log_target:
+        y = np.log1p(y)
+        logger.info("Target log-transformed (log1p). Stored y range: [%.4f, %.4f]", y.min(), y.max())
+
+    # 6 — stratified-free random split into train / val / test
     X_train, X_val, X_test, y_train, y_val, y_test = split_train_val_test(
         X, y, test_size, val_size, random_state
     )
 
-    # 5 — fit scaler on train, apply to all three splits (no leakage)
+    # 6.5 — log-transform right-skewed numericals (before scaling)
+    if log_numerics and log_numeric_cols:
+        logger.info("Applying log1p to numerical cols: %s", list(log_numeric_cols))
+        X_train = log_transform_numerics(X_train, log_numeric_cols)
+        X_val   = log_transform_numerics(X_val,   log_numeric_cols)
+        X_test  = log_transform_numerics(X_test,  log_numeric_cols)
+
+    # 6.6 — target-encode high-cardinality categoricals (after split — no leakage)
+    if target_encode_cols:
+        X_train, X_val, X_test = target_encode(
+            X_train, y_train, X_val, X_test, target_encode_cols
+        )
+        feature_names = tuple(X_train.columns)
+
+    # 7 — fit scaler on train, apply to all three splits (no leakage)
     X_train, X_val, X_test, scaler = fit_and_scale(
         X_train, X_val, X_test, numerical
     )
@@ -226,7 +314,7 @@ def log_feature_set(fset: FeatureSet) -> None:
     logger.info("  Val               : X=%s  y=%s", fset.X_val.shape,   fset.y_val.shape)
     logger.info("  Test              : X=%s  y=%s", fset.X_test.shape,  fset.y_test.shape)
     logger.info(
-        "  Target (train)    : min=%.2f  median=%.2f  max=%.2f",
+        "  Target (train)    : min=%.4f  median=%.4f  max=%.4f  (log-transformed if log_target=true)",
         fset.y_train.min(), fset.y_train.median(), fset.y_train.max(),
     )
     logger.info(

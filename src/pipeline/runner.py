@@ -7,6 +7,7 @@ from typing import Any, Callable
 from features import cleaning, eda, engineering, exploration
 from interpretation import importance, insights
 from models import advanced, trainer
+from tuning import optuna_tuner
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,6 +31,7 @@ STAGES: dict[str, Callable[[dict[str, Any]], None]] = {
     "eda":       eda.run,
     "train":     trainer.run,
     "advanced":  advanced.run,
+    "tune":      optuna_tuner.run,
     "interpret": _run_interpret,
 }
 
