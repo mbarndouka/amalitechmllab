@@ -319,8 +319,8 @@ def plot_multicollinearity_heatmap(
     threshold: float = 0.7,
 ) -> pd.DataFrame:
     """Feature-only correlation heatmap. Returns DataFrame of high-correlation pairs."""
-    import numpy as np
     import matplotlib.pyplot as plt
+    import numpy as np
     import seaborn as sns
 
     feat_cols = [c for c in numerical_cols if c in df.columns]

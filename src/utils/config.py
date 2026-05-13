@@ -1,9 +1,10 @@
 """Configuration loading — reads config.toml via stdlib tomllib (Python 3.11+)."""
 from __future__ import annotations
 
-from tomllib import load as load_toml
 from pathlib import Path
+from tomllib import load as load_toml
 from typing import Any
+
 
 def load_config(path: str | Path = "configs/config.toml") -> dict[str, Any]:
     """Load TOML config from *path* and return as a plain dict."""

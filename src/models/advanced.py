@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, StackingRegressor
 from sklearn.linear_model import Lasso, Ridge
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_score
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.tree import DecisionTreeRegressor
 from xgboost import XGBRegressor
 

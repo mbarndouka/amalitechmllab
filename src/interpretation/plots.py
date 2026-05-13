@@ -140,7 +140,7 @@ def plot_metrics_comparison(
     colors = ["#2ecc71", "#3498db", "#e74c3c"]
 
     fig, axes = plt.subplots(1, 4, figsize=(18, 5))
-    for ax, metric, title in zip(axes, metric_names, titles):
+    for ax, metric, title in zip(axes, metric_names, titles, strict=False):
         vals = [metrics_by_split[s][metric] for s in splits]
         ax.bar(splits, vals, color=colors[: len(splits)], alpha=0.85)
         ax.set_title(title)
@@ -161,9 +161,9 @@ def plot_regularization_path(
     alphas: list[float] | None = None,
 ) -> None:
     """Train/val R² vs alpha for Ridge and Lasso side-by-side."""
+    import matplotlib.pyplot as plt
     from sklearn.linear_model import Lasso, Ridge
     from sklearn.metrics import r2_score
-    import matplotlib.pyplot as plt
 
     if alphas is None:
         alphas = [0.001, 0.01, 0.1, 1, 10, 100, 1_000, 10_000]
@@ -202,8 +202,8 @@ def plot_learning_curve(
     train_sizes: list[float] | None = None,
 ) -> None:
     """Classic bias–variance learning curve: train/cv score vs training set size."""
-    from sklearn.model_selection import learning_curve
     import matplotlib.pyplot as plt
+    from sklearn.model_selection import learning_curve
 
     if train_sizes is None:
         train_sizes = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
@@ -236,7 +236,7 @@ def plot_learning_curve(
 
 
 def plot_model_comparison(
-    comparison_df: "pd.DataFrame",
+    comparison_df: pd.DataFrame,
     split: str = "val",
 ) -> None:
     """Bar chart comparing all models on R², MAE, RMSE for a given split."""
@@ -263,7 +263,7 @@ def plot_model_comparison(
         ax.set_title(title)
         if fmt:
             ax.yaxis.set_major_formatter(fmt)
-        for bar, val in zip(bars, df[metric].values):
+        for bar, val in zip(bars, df[metric].values, strict=False):
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
                 bar.get_height() * 1.01,
@@ -281,7 +281,7 @@ def plot_model_comparison(
 # ---------------------------------------------------------------------------
 
 def plot_feature_importance(
-    importance_df: "pd.DataFrame",
+    importance_df: pd.DataFrame,
     model_name: str,
     top_n: int = 20,
 ) -> None:
@@ -307,7 +307,7 @@ def plot_feature_importance(
     plt.show()
 
 
-def plot_airline_pricing(df: "pd.DataFrame") -> None:
+def plot_airline_pricing(df: pd.DataFrame) -> None:
     """Box-and-whisker plot of fare distribution per airline, sorted by median.
 
     WHY BOXPLOT not bar chart: A bar chart of median loses distribution info.
@@ -329,7 +329,7 @@ def plot_airline_pricing(df: "pd.DataFrame") -> None:
     bp = ax.boxplot(data, labels=order, patch_artist=True, showfliers=False,
                     medianprops={"color": "black", "linewidth": 2})
 
-    for patch, color in zip(bp["boxes"], colors):
+    for patch, color in zip(bp["boxes"], colors, strict=False):
         patch.set_facecolor(color)
         patch.set_alpha(0.72)
 
@@ -342,7 +342,7 @@ def plot_airline_pricing(df: "pd.DataFrame") -> None:
     plt.show()
 
 
-def plot_seasonal_pricing(df: "pd.DataFrame") -> None:
+def plot_seasonal_pricing(df: pd.DataFrame) -> None:
     """Bar chart of median fare per season with percentage-above-Regular labels.
 
     WHY SHOW PREMIUM %: Raw BDT numbers are less actionable than "Eid is X% more
@@ -374,7 +374,7 @@ def plot_seasonal_pricing(df: "pd.DataFrame") -> None:
         alpha=0.85,
         width=0.55,
     )
-    for bar, (season, val) in zip(bars, seasonal.items()):
+    for bar, (season, val) in zip(bars, seasonal.items(), strict=False):
         pct = (val / base - 1) * 100
         label = f"BDT {val/1000:.1f}k\n({pct:+.0f}%)" if season != "Regular" else f"BDT {val/1000:.1f}k\n(baseline)"
         ax.text(
@@ -393,7 +393,7 @@ def plot_seasonal_pricing(df: "pd.DataFrame") -> None:
     plt.show()
 
 
-def plot_route_heatmap(df: "pd.DataFrame") -> None:
+def plot_route_heatmap(df: pd.DataFrame) -> None:
     """Heatmap of median fare: rows = source airports, cols = destination airports.
 
     WHY HEATMAP: A 2D matrix lets us see all source→destination combinations at
@@ -439,7 +439,7 @@ def plot_route_heatmap(df: "pd.DataFrame") -> None:
     plt.show()
 
 
-def plot_days_left_fare(df: "pd.DataFrame") -> None:
+def plot_days_left_fare(df: pd.DataFrame) -> None:
     """Line chart of median fare vs booking window (days before departure).
 
     WHY BUCKETS not scatter: Raw scatter of days_left vs fare is a blob —

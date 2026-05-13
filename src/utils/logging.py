@@ -1,10 +1,9 @@
 """Centralized logging setup."""
 from __future__ import annotations
 
-from importlib import import_module
 import sys
+from importlib import import_module
 from pathlib import Path
-
 
 logging = import_module("logging")
 
