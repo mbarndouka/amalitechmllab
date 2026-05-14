@@ -75,6 +75,7 @@ omit = ["tests/*", "notebooks/*"]
 
 [dependency-groups]
 dev = [
+    "nbconvert>=7.17.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.12",
 ]

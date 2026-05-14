@@ -13,8 +13,9 @@ categorical_impute_value    = "Unknown"
 leakage_columns             = ["Base Fare (BDT)", "Tax & Surcharge (BDT)"]
 
 [features]
-target      = "fare"
-log_target  = true
+target          = "fare"
+log_target      = true
+eval_log_space  = true
 redundant   = ["source_name", "destination_name"]
 categorical = [
     "airline", "source", "destination",
@@ -80,3 +81,9 @@ metrics  = ["rmse", "mae", "r2", "mape"]
 n_trials   = 100
 timeout    = 3600
 study_name = "flight_fare_optuna"
+
+[mlflow]
+enabled       = true
+tracking_uri  = "sqlite:///mlflow.db"
+artifact_location = "mlartifacts"
+registry_name = "FarePredictor"
