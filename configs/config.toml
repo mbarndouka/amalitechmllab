@@ -13,7 +13,9 @@ categorical_impute_value    = "Unknown"
 leakage_columns             = ["Base Fare (BDT)", "Tax & Surcharge (BDT)"]
 
 [features]
-target      = "fare"
+target          = "fare"
+log_target      = true
+eval_log_space  = true
 redundant   = ["source_name", "destination_name"]
 categorical = [
     "airline", "source", "destination",
@@ -24,6 +26,9 @@ numerical   = [
     "departure_hour", "departure_day_of_week", "departure_month",
     "arrival_hour",   "arrival_day_of_week",   "arrival_month",
 ]
+log_numerics      = true
+log_numeric_cols  = ["duration", "days_left"]
+target_encode_cols = ["route"]
 
 [features.ordinal]
 stopovers = ["Direct", "1 Stop", "2 Stops"]
@@ -76,3 +81,9 @@ metrics  = ["rmse", "mae", "r2", "mape"]
 n_trials   = 100
 timeout    = 3600
 study_name = "flight_fare_optuna"
+
+[mlflow]
+enabled       = true
+tracking_uri  = "sqlite:///mlflow.db"
+artifact_location = "mlartifacts"
+registry_name = "FarePredictor"
