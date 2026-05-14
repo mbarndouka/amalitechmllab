@@ -1,4 +1,5 @@
 """Tests for models/trainer.py"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -54,22 +55,32 @@ def test_evaluate_log_target_inverse_transforms(simple_data):
     # simulate realistic log1p(fare) values — fares in 5,000–200,000 BDT range
     np.random.seed(42)
     fare_train = np.random.uniform(5000, 200000, len(y_train))
-    fare_val   = np.random.uniform(5000, 200000, len(y_val))
-    fare_test  = np.random.uniform(5000, 200000, len(y_test))
+    fare_val = np.random.uniform(5000, 200000, len(y_val))
+    fare_test = np.random.uniform(5000, 200000, len(y_test))
     y_train_log = np.log1p(fare_train)
-    y_val_log   = np.log1p(fare_val)
-    y_test_log  = np.log1p(fare_test)
+    y_val_log = np.log1p(fare_val)
+    y_test_log = np.log1p(fare_test)
 
     model = train_linear_regression(X_train, y_train_log)
 
     metrics_log = evaluate_all_splits(
-        model, X_train, X_val, X_test,
-        y_train_log, y_val_log, y_test_log,
+        model,
+        X_train,
+        X_val,
+        X_test,
+        y_train_log,
+        y_val_log,
+        y_test_log,
         log_target=False,
     )
     metrics_orig = evaluate_all_splits(
-        model, X_train, X_val, X_test,
-        y_train_log, y_val_log, y_test_log,
+        model,
+        X_train,
+        X_val,
+        X_test,
+        y_train_log,
+        y_val_log,
+        y_test_log,
         log_target=True,
     )
     # MAE in BDT scale (thousands) must be far larger than in log scale (~0–12)

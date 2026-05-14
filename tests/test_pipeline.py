@@ -1,7 +1,8 @@
 """Tests for pipeline/runner.py — stage dispatch and ordering."""
+
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -28,8 +29,7 @@ def test_run_stage_unknown_name_raises_key_error():
 
 def test_run_all_calls_every_stage_in_order():
     call_order = []
-    mock_fns = {name: MagicMock(side_effect=lambda cfg, n=name: call_order.append(n))
-                for name in STAGES}
+    mock_fns = {name: MagicMock(side_effect=lambda cfg, n=name: call_order.append(n)) for name in STAGES}
     with patch.dict(STAGES, mock_fns, clear=True):
         run_all({})
     assert call_order == list(mock_fns.keys())
@@ -48,6 +48,5 @@ def test_run_stage_propagates_exception():
     def boom(cfg):
         raise RuntimeError("stage failed")
 
-    with patch.dict(STAGES, {"train": boom}):
-        with pytest.raises(RuntimeError, match="stage failed"):
-            run_stage("train", {})
+    with patch.dict(STAGES, {"train": boom}), pytest.raises(RuntimeError, match="stage failed"):
+        run_stage("train", {})

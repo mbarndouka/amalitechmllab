@@ -1,4 +1,5 @@
 """Step 1 — Data Understanding: load, inspect, and profile the raw dataset."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -84,7 +85,10 @@ def profile_columns(df: pd.DataFrame) -> dict[str, list[str]]:
         vc = df[col].value_counts()
         logger.info(
             "  %-42s  unique=%-5d  top='%s' (%d rows)",
-            col, len(vc), vc.index[0], vc.iloc[0],
+            col,
+            len(vc),
+            vc.index[0],
+            vc.iloc[0],
         )
 
     logger.info("=== DATETIME-LIKE COLUMNS — sample value ===")
@@ -99,8 +103,12 @@ def profile_columns(df: pd.DataFrame) -> dict[str, list[str]]:
         outliers = int(((s < q1 - 1.5 * iqr) | (s > q3 + 1.5 * iqr)).sum())
         logger.info(
             "  %-42s  min=%-12.2f  max=%-12.2f  skew=%-8.2f  outliers=%d (%.1f%%)",
-            col, float(s.min()), float(s.max()), float(s.skew()),
-            outliers, outliers / len(s) * 100,
+            col,
+            float(s.min()),
+            float(s.max()),
+            float(s.skew()),
+            outliers,
+            outliers / len(s) * 100,
         )
 
     return classification
@@ -119,7 +127,10 @@ def summarise_observations(
         t = df[target]
         logger.info(
             "  Target range        : %.2f – %.2f  |  mean=%.2f  median=%.2f",
-            t.min(), t.max(), t.mean(), t.median(),
+            t.min(),
+            t.max(),
+            t.mean(),
+            t.median(),
         )
     logger.info("  Numerical features  : %s", classification["numerical"])
     logger.info("  Categorical features: %s", classification["categorical"])
@@ -141,9 +152,7 @@ def summarise_observations(
 
 def run(cfg: dict[str, Any]) -> None:
     """Stage entry point — orchestrates all exploration sub-tasks."""
-    raw_path: str = cfg.get("data", {}).get(
-        "raw_path", "data/raw/Flight_Price_Dataset_of_Bangladesh.csv"
-    )
+    raw_path: str = cfg.get("data", {}).get("raw_path", "data/raw/Flight_Price_Dataset_of_Bangladesh.csv")
     logger.info("Loading raw dataset from: %s", raw_path)
     df = load_data(raw_path)
 

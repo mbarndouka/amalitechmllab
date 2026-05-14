@@ -1,4 +1,5 @@
 """Integration tests for features/engineering.py — engineer() orchestrator."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -30,18 +31,20 @@ def eng_df() -> pd.DataFrame:
     """Cleaned dataframe ready for feature engineering (post-cleaning schema)."""
     np.random.seed(0)
     n = 200
-    return pd.DataFrame({
-        "airline":      np.random.choice(["Air India", "IndiGo", "Emirates"], n),
-        "source":       np.random.choice(["DAC", "CGP"], n),
-        "source_name":  ["Dhaka"] * n,
-        "destination":  np.random.choice(["DXB", "DEL", "LHR"], n),
-        "destination_name": ["Dubai"] * n,
-        "travel_class": np.random.choice(["Economy", "Business"], n),
-        "duration":     np.random.uniform(2, 14, n),
-        "days_left":    np.random.randint(1, 180, n).astype(float),
-        "stopovers":    np.random.randint(0, 3, n).astype(float),
-        "fare":         np.random.uniform(5000, 200000, n),
-    })
+    return pd.DataFrame(
+        {
+            "airline": np.random.choice(["Air India", "IndiGo", "Emirates"], n),
+            "source": np.random.choice(["DAC", "CGP"], n),
+            "source_name": ["Dhaka"] * n,
+            "destination": np.random.choice(["DXB", "DEL", "LHR"], n),
+            "destination_name": ["Dubai"] * n,
+            "travel_class": np.random.choice(["Economy", "Business"], n),
+            "duration": np.random.uniform(2, 14, n),
+            "days_left": np.random.randint(1, 180, n).astype(float),
+            "stopovers": np.random.randint(0, 3, n).astype(float),
+            "fare": np.random.uniform(5000, 200000, n),
+        }
+    )
 
 
 def test_engineer_returns_feature_set(eng_df, eng_cfg):
@@ -58,8 +61,8 @@ def test_engineer_splits_cover_full_dataset(eng_df, eng_cfg):
 def test_engineer_no_overlap_between_splits(eng_df, eng_cfg):
     fset = engineer(eng_df, eng_cfg)
     train_idx = set(fset.X_train.index)
-    val_idx   = set(fset.X_val.index)
-    test_idx  = set(fset.X_test.index)
+    val_idx = set(fset.X_val.index)
+    test_idx = set(fset.X_test.index)
     assert train_idx.isdisjoint(val_idx)
     assert train_idx.isdisjoint(test_idx)
     assert val_idx.isdisjoint(test_idx)
@@ -103,8 +106,8 @@ def test_engineer_scaler_fitted_on_train_only(eng_df, eng_cfg):
 def test_engineer_y_shapes_match_x(eng_df, eng_cfg):
     fset = engineer(eng_df, eng_cfg)
     assert len(fset.X_train) == len(fset.y_train)
-    assert len(fset.X_val)   == len(fset.y_val)
-    assert len(fset.X_test)  == len(fset.y_test)
+    assert len(fset.X_val) == len(fset.y_val)
+    assert len(fset.X_test) == len(fset.y_test)
 
 
 def test_engineer_log_target_transforms_y(eng_df, eng_cfg):
@@ -115,27 +118,33 @@ def test_engineer_log_target_transforms_y(eng_df, eng_cfg):
     fset_raw = engineer(eng_df, cfg_raw)
 
     # log-transformed y must be much smaller than raw fares
-    assert fset_log.y_train.max() < 15        # log1p(200000) ≈ 12.2
+    assert fset_log.y_train.max() < 15  # log1p(200000) ≈ 12.2
     assert fset_raw.y_train.max() > 1000
 
 
 def test_engineer_log_numerics_transforms_duration(eng_df, eng_cfg):
-    cfg = {**eng_cfg, "features": {
-        **eng_cfg["features"],
-        "log_numerics": True,
-        "log_numeric_cols": ["duration"],
-    }}
+    cfg = {
+        **eng_cfg,
+        "features": {
+            **eng_cfg["features"],
+            "log_numerics": True,
+            "log_numeric_cols": ["duration"],
+        },
+    }
     fset = engineer(eng_df, cfg)
     # After log1p + scaling, all duration values finite
     assert fset.X_train["duration"].isna().sum() == 0
 
 
 def test_engineer_target_encode_replaces_col(eng_df, eng_cfg):
-    cfg = {**eng_cfg, "features": {
-        **eng_cfg["features"],
-        "categorical": ["airline", "travel_class"],
-        "target_encode_cols": ("route",),
-    }}
+    cfg = {
+        **eng_cfg,
+        "features": {
+            **eng_cfg["features"],
+            "categorical": ["airline", "travel_class"],
+            "target_encode_cols": ("route",),
+        },
+    }
     fset = engineer(eng_df, cfg)
     assert "route_te" in fset.X_train.columns
     assert "route" not in fset.X_train.columns

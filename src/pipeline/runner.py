@@ -1,4 +1,5 @@
 """Pipeline runner — maps stage names to their run() functions and executes them."""
+
 from __future__ import annotations
 
 import time
@@ -26,13 +27,13 @@ def _run_interpret(cfg: dict[str, Any]) -> None:
 
 
 STAGES: dict[str, Callable[[dict[str, Any]], None]] = {
-    "explore":   exploration.run,
-    "clean":     cleaning.run,
-    "engineer":  engineering.run,
-    "eda":       eda.run,
-    "train":     trainer.run,
-    "advanced":  advanced.run,
-    "tune":      optuna_tuner.run,
+    "explore": exploration.run,
+    "clean": cleaning.run,
+    "engineer": engineering.run,
+    "eda": eda.run,
+    "train": trainer.run,
+    "advanced": advanced.run,
+    "tune": optuna_tuner.run,
     "interpret": _run_interpret,
 }
 

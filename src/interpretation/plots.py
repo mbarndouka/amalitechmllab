@@ -18,6 +18,7 @@ New (Step 6 — interpretation):
   plot_route_heatmap         — heatmap median fare by source→destination
   plot_days_left_fare        — line chart booking window vs fare
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -74,8 +75,7 @@ def plot_residuals(
     fig.patch.set_facecolor("white")
 
     # 1. Residuals vs predicted (log-space)
-    sns.scatterplot(x=y_pred, y=residuals, alpha=0.2, s=6, color="#e74c3c",
-                    rasterized=True, ax=axes[0])
+    sns.scatterplot(x=y_pred, y=residuals, alpha=0.2, s=6, color="#e74c3c", rasterized=True, ax=axes[0])
     axes[0].axhline(0, color="black", linewidth=1)
     axes[0].set_xlabel("Predicted log(Fare) (log-space)")
     axes[0].set_ylabel("Residual (log-space)")
@@ -89,15 +89,15 @@ def plot_residuals(
     axes[1].set_title(f"{title_prefix}Residual Distribution")
 
     # 3. Absolute residuals vs actual (log-space error magnitude)
-    sns.scatterplot(x=y_true, y=np.abs(residuals), alpha=0.2, s=6, color="#8e44ad",
-                    rasterized=True, ax=axes[2])
+    sns.scatterplot(x=y_true, y=np.abs(residuals), alpha=0.2, s=6, color="#8e44ad", rasterized=True, ax=axes[2])
     axes[2].set_xlabel("Actual log(Fare) (log-space)")
     axes[2].set_ylabel("|Residual| (log-space)")
     axes[2].set_title(f"{title_prefix}Error Magnitude vs Actual")
 
     plt.suptitle(
         f"Residual Analysis  |  mean={residuals.mean():+.4f}  std={residuals.std():.4f}",
-        fontsize=12, fontweight="bold",
+        fontsize=12,
+        fontweight="bold",
     )
     sns.despine()
     plt.tight_layout()
@@ -124,8 +124,12 @@ def plot_coefficients(
     fig, ax = plt.subplots(figsize=(10, 7))
     fig.patch.set_facecolor("white")
     sns.barplot(
-        data=plot_df, y="feature", x="coef",
-        palette=colors, orient="h", ax=ax,
+        data=plot_df,
+        y="feature",
+        x="coef",
+        palette=colors,
+        orient="h",
+        ax=ax,
     )
     ax.axvline(0, color="black", linewidth=0.8)
     ax.set_xlabel("Coefficient (log-BDT units)")
@@ -196,17 +200,24 @@ def plot_regularization_path(
             m = ModelCls(alpha=a, max_iter=10_000)
             m.fit(X_train, y_train)
             train_r2.append(r2_score(y_train, m.predict(X_train)))
-            val_r2.append(r2_score(y_val,   m.predict(X_val)))
+            val_r2.append(r2_score(y_val, m.predict(X_val)))
 
-        curve_df = pd.DataFrame({
-            "alpha": alphas * 2,
-            "R²": train_r2 + val_r2,
-            "split": ["Train R²"] * len(alphas) + ["Val R²"] * len(alphas),
-        })
+        curve_df = pd.DataFrame(
+            {
+                "alpha": alphas * 2,
+                "R²": train_r2 + val_r2,
+                "split": ["Train R²"] * len(alphas) + ["Val R²"] * len(alphas),
+            }
+        )
         sns.lineplot(
-            data=curve_df, x="alpha", y="R²", hue="split",
-            marker="o", palette=["#4C72B0", "#DD8452"],
-            linewidth=2, ax=ax,
+            data=curve_df,
+            x="alpha",
+            y="R²",
+            hue="split",
+            marker="o",
+            palette=["#4C72B0", "#DD8452"],
+            linewidth=2,
+            ax=ax,
         )
         ax.set_xscale("log")
         ax.set_xlabel("alpha (log scale)")
@@ -238,7 +249,9 @@ def plot_learning_curve(
         train_sizes = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
 
     sizes, train_scores, val_scores = learning_curve(
-        model, X_train, y_train,
+        model,
+        X_train,
+        y_train,
         train_sizes=train_sizes,
         cv=cv,
         scoring="r2",
@@ -246,20 +259,18 @@ def plot_learning_curve(
     )
 
     train_mean = train_scores.mean(axis=1)
-    train_std  = train_scores.std(axis=1)
-    val_mean   = val_scores.mean(axis=1)
-    val_std    = val_scores.std(axis=1)
+    train_std = train_scores.std(axis=1)
+    val_mean = val_scores.mean(axis=1)
+    val_std = val_scores.std(axis=1)
 
     fig, ax = plt.subplots(figsize=(9, 5))
     fig.patch.set_facecolor("white")
-    sns.lineplot(x=sizes, y=train_mean, marker="o", color="#4C72B0",
-                 label="Train R²", linewidth=2, ax=ax)
-    ax.fill_between(sizes, train_mean - train_std, train_mean + train_std,
-                    alpha=0.15, color="#4C72B0")
-    sns.lineplot(x=sizes, y=val_mean, marker="s", color="#DD8452",
-                 label="CV Val R²", linewidth=2, linestyle="--", ax=ax)
-    ax.fill_between(sizes, val_mean - val_std, val_mean + val_std,
-                    alpha=0.15, color="#DD8452")
+    sns.lineplot(x=sizes, y=train_mean, marker="o", color="#4C72B0", label="Train R²", linewidth=2, ax=ax)
+    ax.fill_between(sizes, train_mean - train_std, train_mean + train_std, alpha=0.15, color="#4C72B0")
+    sns.lineplot(
+        x=sizes, y=val_mean, marker="s", color="#DD8452", label="CV Val R²", linewidth=2, linestyle="--", ax=ax
+    )
+    ax.fill_between(sizes, val_mean - val_std, val_mean + val_std, alpha=0.15, color="#DD8452")
     ax.set_xlabel("Training Set Size")
     ax.set_ylabel("R²")
     ax.set_title("Learning Curve — Bias–Variance Tradeoff")
@@ -292,47 +303,50 @@ def plot_model_comparison(
             return f"{v:.4f}"
         if sample_mae < 10:
             return f"{v:.4f}"
-        return f"{v/1000:.1f}k"
+        return f"{v / 1000:.1f}k"
 
     def _yformatter(v: float, metric: str) -> str:
         if metric == "r2":
             return f"{v:.4f}"
         if sample_mae < 10:
             return f"{v:.4f}"
-        return f"{v/1000:.0f}k"
+        return f"{v / 1000:.0f}k"
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
     fig.patch.set_facecolor("white")
 
     for ax, metric, title in [
-        (axes[0], "r2",   "R² (higher = better)"),
-        (axes[1], "mae",  "MAE (lower = better)"),
+        (axes[0], "r2", "R² (higher = better)"),
+        (axes[1], "mae", "MAE (lower = better)"),
         (axes[2], "rmse", "RMSE (lower = better)"),
     ]:
         plot_df = pd.DataFrame({"model": models, "value": df[metric].values})
         sns.barplot(
-            data=plot_df, x="model", y="value",
-            palette=palette, alpha=0.85, ax=ax,
+            data=plot_df,
+            x="model",
+            y="value",
+            palette=palette,
+            alpha=0.85,
+            ax=ax,
         )
         ax.set_xticklabels([m.replace("_", "\n") for m in models], fontsize=8)
         ax.set_title(title)
         ax.set_xlabel("")
         ax.set_ylabel(metric.upper())
         import matplotlib.ticker as mticker
+
         if metric != "r2" and sample_mae >= 10:
-            ax.yaxis.set_major_formatter(
-                mticker.FuncFormatter(lambda v, _: f"{v/1000:.0f}k")
-            )
+            ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v / 1000:.0f}k"))
         elif metric != "r2":
-            ax.yaxis.set_major_formatter(
-                mticker.FuncFormatter(lambda v, _: f"{v:.4f}")
-            )
+            ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.4f}"))
         for i, val in enumerate(df[metric].values):
             ax.text(
                 i,
                 val * 1.01,
                 _fmt_value(val, metric),
-                ha="center", va="bottom", fontsize=8,
+                ha="center",
+                va="bottom",
+                fontsize=8,
             )
 
     plt.suptitle(f"Model Comparison — {split.capitalize()} Split", fontsize=13, fontweight="bold")
@@ -344,6 +358,7 @@ def plot_model_comparison(
 # ---------------------------------------------------------------------------
 # Step 6 — Interpretation plots
 # ---------------------------------------------------------------------------
+
 
 def plot_feature_importance(
     importance_df: pd.DataFrame,
@@ -368,8 +383,12 @@ def plot_feature_importance(
     fig, ax = plt.subplots(figsize=(10, max(6, top_n * 0.4)))
     fig.patch.set_facecolor("white")
     sns.barplot(
-        data=top, y="feature", x="abs_importance",
-        palette="YlOrRd", orient="h", ax=ax,
+        data=top,
+        y="feature",
+        x="abs_importance",
+        palette="YlOrRd",
+        orient="h",
+        ax=ax,
     )
     ax.set_xlabel("Feature Importance (total MSE reduction, normalised)")
     ax.set_title(f"{model_name.replace('_', ' ').title()} — Top {top_n} Feature Importances")
@@ -395,13 +414,16 @@ def plot_airline_pricing(df: pd.DataFrame) -> None:
     sns.set_theme(**_THEME)
 
     order = df.groupby("airline")["fare"].median().sort_values(ascending=False).index.tolist()
-    fmt = mticker.FuncFormatter(lambda x, _: f"{x/1000:.0f}k")
+    fmt = mticker.FuncFormatter(lambda x, _: f"{x / 1000:.0f}k")
 
     fig, ax = plt.subplots(figsize=(16, 6))
     fig.patch.set_facecolor("white")
     sns.boxplot(
-        data=df, x="airline", y="fare",
-        order=order, orient="v",
+        data=df,
+        x="airline",
+        y="fare",
+        order=order,
+        orient="v",
         palette="husl",
         showfliers=False,
         linewidth=0.9,
@@ -439,13 +461,9 @@ def plot_seasonal_pricing(df: pd.DataFrame) -> None:
         "Regular": "#2ECC71",
     }
 
-    seasonal = (
-        df.groupby("seasonality")["fare"]
-        .median()
-        .reindex(order)
-    )
+    seasonal = df.groupby("seasonality")["fare"].median().reindex(order)
     base = seasonal["Regular"]
-    fmt = mticker.FuncFormatter(lambda x, _: f"{x/1000:.0f}k")
+    fmt = mticker.FuncFormatter(lambda x, _: f"{x / 1000:.0f}k")
 
     plot_df = seasonal.reset_index()
     plot_df.columns = ["season", "fare"]
@@ -454,21 +472,24 @@ def plot_seasonal_pricing(df: pd.DataFrame) -> None:
     fig, ax = plt.subplots(figsize=(9, 5))
     fig.patch.set_facecolor("white")
     sns.barplot(
-        data=plot_df, x="season", y="fare",
-        palette=colors, alpha=0.85, ax=ax,
+        data=plot_df,
+        x="season",
+        y="fare",
+        palette=colors,
+        alpha=0.85,
+        ax=ax,
     )
     for i, (season, val) in enumerate(zip(plot_df["season"], plot_df["fare"], strict=False)):
         pct = (val / base - 1) * 100
-        label = (
-            f"BDT {val/1000:.1f}k\n({pct:+.0f}%)"
-            if season != "Regular"
-            else f"BDT {val/1000:.1f}k\n(baseline)"
-        )
+        label = f"BDT {val / 1000:.1f}k\n({pct:+.0f}%)" if season != "Regular" else f"BDT {val / 1000:.1f}k\n(baseline)"
         ax.text(
             i,
             val * 1.01,
             label,
-            ha="center", va="bottom", fontsize=10, fontweight="bold",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold",
         )
 
     ax.set_xlabel("Season")
@@ -496,9 +517,7 @@ def plot_route_heatmap(df: pd.DataFrame) -> None:
 
     pivot = df.pivot_table(values="fare", index="source", columns="destination", aggfunc="median")
 
-    annot_labels = pivot.applymap(
-        lambda v: f"{v/1000:.0f}k" if not np.isnan(v) else ""
-    )
+    annot_labels = pivot.applymap(lambda v: f"{v / 1000:.0f}k" if not np.isnan(v) else "")
 
     fig, ax = plt.subplots(figsize=(18, 6))
     fig.patch.set_facecolor("white")
@@ -513,10 +532,7 @@ def plot_route_heatmap(df: pd.DataFrame) -> None:
     )
     ax.set_xlabel("Destination")
     ax.set_ylabel("Source")
-    ax.set_title(
-        "Median Fare Heatmap — Source Airport × Destination Airport\n"
-        "(white cells = no flights on that route)"
-    )
+    ax.set_title("Median Fare Heatmap — Source Airport × Destination Airport\n(white cells = no flights on that route)")
     ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right", fontsize=8)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=9)
     sns.despine()
@@ -539,7 +555,7 @@ def plot_days_left_fare(df: pd.DataFrame) -> None:
 
     sns.set_theme(**_THEME)
 
-    bins   = [0,   7,  14,  30,  60,  90, 180, 365, 9999]
+    bins = [0, 7, 14, 30, 60, 90, 180, 365, 9999]
     labels = ["0-7", "8-14", "15-30", "31-60", "61-90", "91-180", "181-365", "365+"]
 
     df = df.copy()
@@ -551,27 +567,27 @@ def plot_days_left_fare(df: pd.DataFrame) -> None:
         .reset_index()
     )
 
-    x   = list(range(len(stats)))
-    fmt = mticker.FuncFormatter(lambda v, _: f"{v/1000:.0f}k")
+    x = list(range(len(stats)))
+    fmt = mticker.FuncFormatter(lambda v, _: f"{v / 1000:.0f}k")
 
     fig, ax = plt.subplots(figsize=(11, 5))
     fig.patch.set_facecolor("white")
     sns.lineplot(
-        x=x, y=stats["median"],
-        marker="o", color="#4C72B0", linewidth=2.5,
-        label="Median fare", ax=ax,
+        x=x,
+        y=stats["median"],
+        marker="o",
+        color="#4C72B0",
+        linewidth=2.5,
+        label="Median fare",
+        ax=ax,
     )
-    ax.fill_between(x, stats["q25"], stats["q75"],
-                    alpha=0.2, color="#4C72B0", label="IQR (25th–75th %ile)")
+    ax.fill_between(x, stats["q25"], stats["q75"], alpha=0.2, color="#4C72B0", label="IQR (25th–75th %ile)")
 
     ax.set_xticks(x)
     ax.set_xticklabels(stats["booking_window"], fontsize=9)
     ax.set_xlabel("Days Before Departure (booking window)")
     ax.set_ylabel("Fare (BDT)")
-    ax.set_title(
-        "How Booking Timing Affects Fare\n"
-        "Earlier booking = lower fare? (Look for U-shape or monotone drop)"
-    )
+    ax.set_title("How Booking Timing Affects Fare\nEarlier booking = lower fare? (Look for U-shape or monotone drop)")
     ax.yaxis.set_major_formatter(fmt)
     ax.legend(fontsize=9)
     sns.despine()

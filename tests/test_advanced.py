@@ -1,4 +1,5 @@
 """Smoke tests for models/advanced.py — each trainer fits and returns valid metrics."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -21,11 +22,13 @@ def small_data():
     """Small linear dataset — fast to train, clear signal."""
     np.random.seed(42)
     n = 300
-    X = pd.DataFrame({
-        "a": np.random.randn(n),
-        "b": np.random.randn(n),
-        "c": np.random.randn(n),
-    })
+    X = pd.DataFrame(
+        {
+            "a": np.random.randn(n),
+            "b": np.random.randn(n),
+            "c": np.random.randn(n),
+        }
+    )
     y = 5 * X["a"] - 3 * X["b"] + np.random.randn(n) * 0.5
     # log1p-transformed target (realistic for fare pipeline)
     y_log = np.log1p(np.abs(y) * 1000 + 5000)
@@ -33,8 +36,12 @@ def small_data():
     split = int(n * 0.7)
     val_split = int(n * 0.85)
     return (
-        X.iloc[:split],       X.iloc[split:val_split], X.iloc[val_split:],
-        y_log.iloc[:split],   y_log.iloc[split:val_split], y_log.iloc[val_split:],
+        X.iloc[:split],
+        X.iloc[split:val_split],
+        X.iloc[val_split:],
+        y_log.iloc[:split],
+        y_log.iloc[split:val_split],
+        y_log.iloc[val_split:],
     )
 
 
@@ -42,17 +49,18 @@ def small_data():
 def minimal_cfg() -> dict:
     return {
         "models": {
-            "ridge":         {"alpha": [0.1, 1.0]},
-            "lasso":         {"alpha": [0.01, 0.1], "max_iter": 1000},
+            "ridge": {"alpha": [0.1, 1.0]},
+            "lasso": {"alpha": [0.01, 0.1], "max_iter": 1000},
             "decision_tree": {"max_depth": [3, 5], "min_samples_split": [2], "min_samples_leaf": [1]},
             "random_forest": {"random_state": 42},
             "gradient_boosting": {"n_estimators": 20, "learning_rate": 0.1, "max_depth": 3, "random_state": 42},
-            "xgboost":       {"n_estimators": 20, "learning_rate": 0.1, "max_depth": 3, "random_state": 42},
+            "xgboost": {"n_estimators": 20, "learning_rate": 0.1, "max_depth": 3, "random_state": 42},
         }
     }
 
 
 # ── Ridge ──────────────────────────────────────────────────────────────────────
+
 
 def test_train_ridge_returns_model_and_params(small_data, minimal_cfg):
     X_train, _, _, y_train, _, _ = small_data
@@ -70,6 +78,7 @@ def test_train_ridge_predictions_shape(small_data, minimal_cfg):
 
 # ── Lasso ──────────────────────────────────────────────────────────────────────
 
+
 def test_train_lasso_returns_model_and_params(small_data, minimal_cfg):
     X_train, _, _, y_train, _, _ = small_data
     model, params = train_lasso(X_train, y_train, minimal_cfg, cv=2)
@@ -78,6 +87,7 @@ def test_train_lasso_returns_model_and_params(small_data, minimal_cfg):
 
 
 # ── Decision Tree ──────────────────────────────────────────────────────────────
+
 
 def test_train_decision_tree_returns_model_and_params(small_data, minimal_cfg):
     X_train, _, _, y_train, _, _ = small_data
@@ -94,6 +104,7 @@ def test_train_decision_tree_respects_max_depth(small_data, minimal_cfg):
 
 # ── Gradient Boosting ──────────────────────────────────────────────────────────
 
+
 def test_train_gradient_boosting_returns_model(small_data, minimal_cfg):
     X_train, _, _, y_train, _, _ = small_data
     model, params = train_gradient_boosting(X_train, y_train, minimal_cfg)
@@ -102,6 +113,7 @@ def test_train_gradient_boosting_returns_model(small_data, minimal_cfg):
 
 
 # ── XGBoost ────────────────────────────────────────────────────────────────────
+
 
 def test_train_xgboost_returns_model_and_params(small_data, minimal_cfg):
     X_train, X_val, _, y_train, y_val, _ = small_data
@@ -118,6 +130,7 @@ def test_train_xgboost_uses_early_stopping(small_data, minimal_cfg):
 
 # ── _evaluate helper ───────────────────────────────────────────────────────────
 
+
 def test_evaluate_returns_all_splits(small_data, minimal_cfg):
     X_train, X_val, X_test, y_train, y_val, y_test = small_data
     model, _ = train_ridge(X_train, y_train, minimal_cfg, cv=2)
@@ -129,7 +142,7 @@ def test_evaluate_log_target_produces_bdt_scale_mae(small_data, minimal_cfg):
     X_train, X_val, X_test, y_train, y_val, y_test = small_data
     model, _ = train_ridge(X_train, y_train, minimal_cfg, cv=2)
 
-    m_log  = _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, "ridge", log_target=False)
+    m_log = _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, "ridge", log_target=False)
     m_orig = _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, "ridge", log_target=True)
 
     # log-scale MAE is tiny (~0–12); BDT-scale MAE is thousands
@@ -137,6 +150,7 @@ def test_evaluate_log_target_produces_bdt_scale_mae(small_data, minimal_cfg):
 
 
 # ── build_comparison_table ─────────────────────────────────────────────────────
+
 
 def test_build_comparison_table_shape(small_data, minimal_cfg):
     X_train, X_val, X_test, y_train, y_val, y_test = small_data

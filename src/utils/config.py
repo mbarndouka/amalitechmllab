@@ -1,4 +1,5 @@
 """Configuration loading — reads config.toml via stdlib tomllib (Python 3.11+)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +12,8 @@ def load_config(path: str | Path = "configs/config.toml") -> dict[str, Any]:
     with open(path, "rb") as f:
         return load_toml(f)
 
-def get_nested(config: dict[str, Any], *keys:str, default: Any = None) -> Any:
+
+def get_nested(config: dict[str, Any], *keys: str, default: Any = None) -> Any:
     """Get a nested value from *config* using *keys*."""
     node = config
     for key in keys:

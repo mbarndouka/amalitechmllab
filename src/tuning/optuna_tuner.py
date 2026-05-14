@@ -1,4 +1,5 @@
 """Step 6 — Optuna hyperparameter optimisation for XGBoost."""
+
 from __future__ import annotations
 
 import json
@@ -22,19 +23,21 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 def _objective(
     trial: optuna.Trial,
-    X_train, y_train,
-    X_val, y_val,
+    X_train,
+    y_train,
+    X_val,
+    y_val,
     log_target: bool,
 ) -> float:
     params = {
-        "n_estimators":     trial.suggest_int("n_estimators", 200, 800),
-        "learning_rate":    trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
-        "max_depth":        trial.suggest_int("max_depth", 3, 9),
-        "subsample":        trial.suggest_float("subsample", 0.5, 1.0),
+        "n_estimators": trial.suggest_int("n_estimators", 200, 800),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+        "max_depth": trial.suggest_int("max_depth", 3, 9),
+        "subsample": trial.suggest_float("subsample", 0.5, 1.0),
         "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
         "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
-        "reg_alpha":        trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
-        "reg_lambda":       trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
+        "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 10.0, log=True),
+        "reg_lambda": trial.suggest_float("reg_lambda", 1e-8, 10.0, log=True),
         "random_state": 42,
         "n_jobs": -1,
         "verbosity": 0,
@@ -46,22 +49,22 @@ def _objective(
 
     preds = model.predict(X_val)
     y_v = np.expm1(y_val) if log_target else y_val
-    p_v = np.expm1(preds)  if log_target else preds
+    p_v = np.expm1(preds) if log_target else preds
     return float(r2_score(y_v, p_v))
 
 
 def run(cfg: dict[str, Any]) -> None:
-    data_cfg     = cfg.get("data",     {})
-    tuning_cfg   = cfg.get("tuning",   {})
+    data_cfg = cfg.get("data", {})
+    tuning_cfg = cfg.get("tuning", {})
     features_cfg = cfg.get("features", {})
 
     features_dir = data_cfg.get("features_dir", "data/features")
-    n_trials     = int(tuning_cfg.get("n_trials",   50))
-    timeout      = int(tuning_cfg.get("timeout",    1800))
-    study_name   = str(tuning_cfg.get("study_name", "flight_fare_optuna"))
-    log_target   = bool(features_cfg.get("log_target", False))
+    n_trials = int(tuning_cfg.get("n_trials", 50))
+    timeout = int(tuning_cfg.get("timeout", 1800))
+    study_name = str(tuning_cfg.get("study_name", "flight_fare_optuna"))
+    log_target = bool(features_cfg.get("log_target", False))
 
-    models_dir  = Path("models")
+    models_dir = Path("models")
     reports_dir = Path("reports")
     models_dir.mkdir(exist_ok=True)
     reports_dir.mkdir(exist_ok=True)
@@ -93,13 +96,13 @@ def run(cfg: dict[str, Any]) -> None:
     results: dict[str, dict] = {}
     for split, X, y in [
         ("train", X_train, y_train),
-        ("val",   X_val,   y_val),
-        ("test",  X_test,  y_test),
+        ("val", X_val, y_val),
+        ("test", X_test, y_test),
     ]:
         preds = final_model.predict(X)
         if log_target:
             preds = np.expm1(preds)
-            y     = np.expm1(y)
+            y = np.expm1(y)
         m = compute_metrics(y, preds)
         log_metrics(m, f"xgboost_optuna/{split}")
         results[split] = m

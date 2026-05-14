@@ -1,4 +1,5 @@
 """Tests for features/engineering.py"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -16,8 +17,8 @@ from features.engineering import (
     target_encode,
 )
 
-
 # ── drop_redundant_columns ─────────────────────────────────────────────────────
+
 
 def test_drop_redundant_removes_cols():
     df = pd.DataFrame({"source_name": ["Dhaka"], "fare": [100]})
@@ -33,6 +34,7 @@ def test_drop_redundant_noop_when_absent():
 
 
 # ── add_route_feature ──────────────────────────────────────────────────────────
+
 
 def test_add_route_creates_column():
     df = pd.DataFrame({"source": ["DAC", "CGP"], "destination": ["DXB", "DEL"]})
@@ -54,6 +56,7 @@ def test_add_route_does_not_mutate_input():
 
 
 # ── one_hot_encode ─────────────────────────────────────────────────────────────
+
 
 def test_ohe_expands_categories():
     df = pd.DataFrame({"airline": ["Air India", "IndiGo", "Air India"], "fare": [1, 2, 3]})
@@ -78,6 +81,7 @@ def test_ohe_skips_absent_columns():
 
 # ── split_features_target ──────────────────────────────────────────────────────
 
+
 def test_split_features_target_separates_correctly():
     df = pd.DataFrame({"a": [1, 2], "b": [3, 4], "fare": [10, 20]})
     X, y = split_features_target(df, "fare")
@@ -92,6 +96,7 @@ def test_split_features_target_raises_on_missing():
 
 
 # ── split_train_val_test ───────────────────────────────────────────────────────
+
 
 def test_split_sizes_are_correct():
     np.random.seed(0)
@@ -128,6 +133,7 @@ def test_split_is_reproducible():
 
 # ── log_transform_numerics ─────────────────────────────────────────────────────
 
+
 def test_log_transform_applies_log1p():
     df = pd.DataFrame({"duration": [0.0, 1.0, 9.0]})
     result = log_transform_numerics(df, ("duration",))
@@ -156,10 +162,11 @@ def test_log_transform_skips_absent_cols():
 
 # ── fit_and_scale ──────────────────────────────────────────────────────────────
 
+
 def test_fit_and_scale_standardizes_train():
     X_train = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 5.0]})
-    X_val   = pd.DataFrame({"a": [2.0, 3.0]})
-    X_test  = pd.DataFrame({"a": [4.0, 5.0]})
+    X_val = pd.DataFrame({"a": [2.0, 3.0]})
+    X_test = pd.DataFrame({"a": [4.0, 5.0]})
     X_train_s, _, _, _ = fit_and_scale(X_train, X_val, X_test, ("a",))
     assert X_train_s["a"].mean() == pytest.approx(0.0, abs=1e-10)
     assert X_train_s["a"].std(ddof=0) == pytest.approx(1.0, abs=1e-10)
@@ -167,8 +174,8 @@ def test_fit_and_scale_standardizes_train():
 
 def test_fit_and_scale_scaler_fitted_on_train_only():
     X_train = pd.DataFrame({"a": [10.0, 20.0]})
-    X_val   = pd.DataFrame({"a": [1000.0]})
-    X_test  = pd.DataFrame({"a": [2000.0]})
+    X_val = pd.DataFrame({"a": [1000.0]})
+    X_test = pd.DataFrame({"a": [2000.0]})
     _, _, _, scaler = fit_and_scale(X_train, X_val, X_test, ("a",))
     # scaler mean should match train, not val/test
     assert scaler.mean_[0] == pytest.approx(15.0, abs=0.01)
@@ -176,19 +183,20 @@ def test_fit_and_scale_scaler_fitted_on_train_only():
 
 def test_fit_and_scale_skips_absent_cols():
     X_train = pd.DataFrame({"fare": [100.0, 200.0]})
-    X_val   = pd.DataFrame({"fare": [150.0]})
-    X_test  = pd.DataFrame({"fare": [180.0]})
+    X_val = pd.DataFrame({"fare": [150.0]})
+    X_test = pd.DataFrame({"fare": [180.0]})
     X_train_s, X_val_s, X_test_s, _ = fit_and_scale(X_train, X_val, X_test, ("duration",))
     pd.testing.assert_frame_equal(X_train_s, X_train)
 
 
 # ── target_encode ──────────────────────────────────────────────────────────────
 
+
 def test_target_encode_replaces_col_with_te():
     X_train = pd.DataFrame({"route": ["DAC_DXB", "DAC_DEL", "DAC_DXB"]})
     y_train = pd.Series([100.0, 50.0, 120.0])
-    X_val   = pd.DataFrame({"route": ["DAC_DXB"]})
-    X_test  = pd.DataFrame({"route": ["DAC_DEL"]})
+    X_val = pd.DataFrame({"route": ["DAC_DXB"]})
+    X_test = pd.DataFrame({"route": ["DAC_DEL"]})
     X_tr, X_v, X_te = target_encode(X_train, y_train, X_val, X_test, ("route",))
     assert "route_te" in X_tr.columns
     assert "route" not in X_tr.columns
@@ -197,19 +205,19 @@ def test_target_encode_replaces_col_with_te():
 def test_target_encode_uses_train_means():
     X_train = pd.DataFrame({"route": ["A", "A", "B"]})
     y_train = pd.Series([100.0, 200.0, 50.0])
-    X_val   = pd.DataFrame({"route": ["A"]})
-    X_test  = pd.DataFrame({"route": ["B"]})
+    X_val = pd.DataFrame({"route": ["A"]})
+    X_test = pd.DataFrame({"route": ["B"]})
     X_tr, X_v, X_te = target_encode(X_train, y_train, X_val, X_test, ("route",))
     assert X_tr["route_te"].iloc[0] == pytest.approx(150.0)  # mean of A
-    assert X_v["route_te"].iloc[0] == pytest.approx(150.0)   # same mean used
-    assert X_te["route_te"].iloc[0] == pytest.approx(50.0)   # mean of B
+    assert X_v["route_te"].iloc[0] == pytest.approx(150.0)  # same mean used
+    assert X_te["route_te"].iloc[0] == pytest.approx(50.0)  # mean of B
 
 
 def test_target_encode_unseen_category_uses_global_mean():
     X_train = pd.DataFrame({"route": ["A", "B"]})
     y_train = pd.Series([100.0, 200.0])
-    X_val   = pd.DataFrame({"route": ["C"]})  # unseen
-    X_test  = pd.DataFrame({"route": ["A"]})
+    X_val = pd.DataFrame({"route": ["C"]})  # unseen
+    X_test = pd.DataFrame({"route": ["A"]})
     X_tr, X_v, X_te = target_encode(X_train, y_train, X_val, X_test, ("route",))
     global_mean = y_train.mean()
     assert X_v["route_te"].iloc[0] == pytest.approx(global_mean)
@@ -218,7 +226,7 @@ def test_target_encode_unseen_category_uses_global_mean():
 def test_target_encode_skips_absent_col():
     X_train = pd.DataFrame({"fare": [100.0]})
     y_train = pd.Series([100.0])
-    X_val   = pd.DataFrame({"fare": [150.0]})
-    X_test  = pd.DataFrame({"fare": [180.0]})
+    X_val = pd.DataFrame({"fare": [150.0]})
+    X_test = pd.DataFrame({"fare": [180.0]})
     X_tr, X_v, X_te = target_encode(X_train, y_train, X_val, X_test, ("route",))
     assert "route_te" not in X_tr.columns

@@ -1,4 +1,5 @@
 """Step 3 — Descriptive Statistics: fare summaries by group and feature correlations."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,6 +21,7 @@ _BAR_WIDTH = 20  # character width of the inline correlation bar
 # Data loading
 # ---------------------------------------------------------------------------
 
+
 def load_processed(processed_path: str | Path) -> pd.DataFrame:
     path = Path(processed_path)
     if not path.exists():
@@ -32,6 +34,7 @@ def load_processed(processed_path: str | Path) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Fare summaries by categorical group
 # ---------------------------------------------------------------------------
+
 
 def _fare_summary_by_group(
     df: pd.DataFrame,
@@ -73,10 +76,18 @@ def _log_group_summary(summary: pd.DataFrame, group_col: str) -> None:
         sign = "+" if row["pct_vs_avg"] >= 0 else ""
         logger.info(
             "  %-*s  %6d  %10.2f  %10.2f  %9.2f  %10.2f  %10.2f  %10.2f  %10.2f  %s%.1f%%",
-            width, group,
-            int(row["count"]), row["mean"], row["median"], row["std"],
-            row["p25"], row["p75"], row["min"], row["max"],
-            sign, row["pct_vs_avg"],
+            width,
+            group,
+            int(row["count"]),
+            row["mean"],
+            row["median"],
+            row["std"],
+            row["p25"],
+            row["p75"],
+            row["min"],
+            row["max"],
+            sign,
+            row["pct_vs_avg"],
         )
 
 
@@ -105,6 +116,7 @@ def summarise_fares_by_group(
 # Correlation matrix
 # ---------------------------------------------------------------------------
 
+
 def _corr_bar(r: float) -> str:
     filled = round(abs(r) * _BAR_WIDTH)
     return ("+" if r >= 0 else "-") + "█" * filled + "░" * (_BAR_WIDTH - filled)
@@ -128,18 +140,17 @@ def correlation_matrix(
     logger.info("\n%s", corr.to_string())
 
     if target in corr.columns:
-        target_corr = (
-            corr[target]
-            .drop(target, errors="ignore")
-            .sort_values(key=abs, ascending=False)
-        )
+        target_corr = corr[target].drop(target, errors="ignore").sort_values(key=abs, ascending=False)
         logger.info(
             "=== FEATURE → '%s' CORRELATIONS  (method=%s, sorted by |r|) ===",
-            target, method,
+            target,
+            method,
         )
         logger.info(
             "  %-32s  %7s  %s",
-            "Feature", "r", f"{'bar':^{_BAR_WIDTH + 1}}",
+            "Feature",
+            "r",
+            f"{'bar':^{_BAR_WIDTH + 1}}",
         )
         logger.info("  " + "-" * (32 + 2 + 7 + 2 + _BAR_WIDTH + 1))
         for feat, r in target_corr.items():
@@ -162,9 +173,18 @@ def correlation_heatmap_data(corr: pd.DataFrame) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 _MONTH_NAMES: dict[int, str] = {
-    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
-    5: "May", 6: "Jun", 7: "Jul", 8: "Aug",
-    9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
+    1: "Jan",
+    2: "Feb",
+    3: "Mar",
+    4: "Apr",
+    5: "May",
+    6: "Jun",
+    7: "Jul",
+    8: "Aug",
+    9: "Sep",
+    10: "Oct",
+    11: "Nov",
+    12: "Dec",
 }
 
 
@@ -194,7 +214,7 @@ def plot_fare_distributions(
     for row_idx, (col, _) in enumerate(fare_cols.items()):
         s = df_raw[col].dropna()
         color = palette[row_idx]
-        fmt = mticker.FuncFormatter(lambda x, _: f"{x/1000:.0f}k")
+        fmt = mticker.FuncFormatter(lambda x, _: f"{x / 1000:.0f}k")
 
         ax_hist = axes[row_idx, 0]
         sns.histplot(s, bins=80, kde=True, color=color, alpha=0.75, ax=ax_hist, stat="density")
@@ -203,9 +223,13 @@ def plot_fare_distributions(
         ax_hist.set_ylabel("Density")
         ax_hist.xaxis.set_major_formatter(fmt)
         ax_hist.text(
-            0.97, 0.95,
-            f"mean={s.mean()/1000:.1f}k\nmedian={s.median()/1000:.1f}k\nskew={s.skew():.2f}",
-            transform=ax_hist.transAxes, ha="right", va="top", fontsize=8,
+            0.97,
+            0.95,
+            f"mean={s.mean() / 1000:.1f}k\nmedian={s.median() / 1000:.1f}k\nskew={s.skew():.2f}",
+            transform=ax_hist.transAxes,
+            ha="right",
+            va="top",
+            fontsize=8,
             bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
         )
 
@@ -234,26 +258,27 @@ def plot_airline_boxplot(
 
     sns.set_theme(**_THEME)
 
-    order = (
-        df.groupby(group_col, observed=True)[target]
-        .median()
-        .sort_values()
-        .index.tolist()
-    )
+    order = df.groupby(group_col, observed=True)[target].median().sort_values().index.tolist()
 
     fig, ax = plt.subplots(figsize=(13, 8))
     fig.patch.set_facecolor("white")
     sns.boxplot(
-        data=df, y=group_col, x=target, order=order, ax=ax, orient="h",
+        data=df,
+        y=group_col,
+        x=target,
+        order=order,
+        ax=ax,
+        orient="h",
         palette="husl",
-        flierprops=dict(marker=".", markersize=2, alpha=0.3), linewidth=0.8,
+        flierprops=dict(marker=".", markersize=2, alpha=0.3),
+        linewidth=0.8,
     )
-    ax.axvline(df[target].mean(),   color="red",       linestyle="--", linewidth=1.2, label="Overall mean")
-    ax.axvline(df[target].median(), color="steelblue", linestyle=":",  linewidth=1.2, label="Overall median")
+    ax.axvline(df[target].mean(), color="red", linestyle="--", linewidth=1.2, label="Overall mean")
+    ax.axvline(df[target].median(), color="steelblue", linestyle=":", linewidth=1.2, label="Overall median")
     ax.set_xlabel("Fare (BDT)")
     ax.set_ylabel("")
     ax.set_title(f"Fare Variation Across {group_col.capitalize()}s (sorted by median)", fontsize=13)
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x/1000:.0f}k"))
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x / 1000:.0f}k"))
     ax.legend(fontsize=9)
     sns.despine()
     plt.tight_layout()
@@ -272,13 +297,9 @@ def plot_avg_fare_by_time(
 
     sns.set_theme(**_THEME)
 
-    fmt = mticker.FuncFormatter(lambda y, _: f"{y/1000:.0f}k")
+    fmt = mticker.FuncFormatter(lambda y, _: f"{y / 1000:.0f}k")
 
-    monthly = (
-        df.groupby(month_col, observed=True)[target]
-        .agg(["mean", "median", "std"])
-        .rename(index=_MONTH_NAMES)
-    )
+    monthly = df.groupby(month_col, observed=True)[target].agg(["mean", "median", "std"]).rename(index=_MONTH_NAMES)
     seasonal = (
         df.groupby(season_col, observed=True)[target]
         .agg(["mean", "median", "std"])
@@ -292,18 +313,31 @@ def plot_avg_fare_by_time(
     monthly_plot["x"] = range(len(monthly_plot))
 
     sns.lineplot(
-        x=monthly_plot["x"], y=monthly_plot["mean"],
-        marker="o", color="#e74c3c", label="Mean", linewidth=2, ax=axes[0],
+        x=monthly_plot["x"],
+        y=monthly_plot["mean"],
+        marker="o",
+        color="#e74c3c",
+        label="Mean",
+        linewidth=2,
+        ax=axes[0],
     )
     sns.lineplot(
-        x=monthly_plot["x"], y=monthly_plot["median"],
-        marker="s", color="#4C72B0", label="Median", linewidth=1.5, linestyle="--", ax=axes[0],
+        x=monthly_plot["x"],
+        y=monthly_plot["median"],
+        marker="s",
+        color="#4C72B0",
+        label="Median",
+        linewidth=1.5,
+        linestyle="--",
+        ax=axes[0],
     )
     axes[0].fill_between(
         monthly_plot["x"],
         monthly_plot["mean"] - monthly_plot["std"],
         monthly_plot["mean"] + monthly_plot["std"],
-        alpha=0.15, color="#e74c3c", label="±1 std",
+        alpha=0.15,
+        color="#e74c3c",
+        label="±1 std",
     )
     axes[0].set_xticks(list(monthly_plot["x"]))
     axes[0].set_xticklabels(monthly.index)
@@ -324,12 +358,25 @@ def plot_avg_fare_by_time(
     )
     x_sea = range(n_seasons)
     axes[1].errorbar(
-        x=list(x_sea), y=seasonal_reset["mean"],
-        yerr=seasonal_reset["std"], fmt="none",
-        elinewidth=1, capsize=5, capthick=1, color="black",
+        x=list(x_sea),
+        y=seasonal_reset["mean"],
+        yerr=seasonal_reset["std"],
+        fmt="none",
+        elinewidth=1,
+        capsize=5,
+        capthick=1,
+        color="black",
     )
-    axes[1].plot(x_sea, seasonal_reset["median"], marker="D", color="black",
-                 linestyle="none", markersize=7, label="Median", zorder=5)
+    axes[1].plot(
+        x_sea,
+        seasonal_reset["median"],
+        marker="D",
+        color="black",
+        linestyle="none",
+        markersize=7,
+        label="Median",
+        zorder=5,
+    )
     axes[1].set_xticklabels(seasonal_reset[season_col], rotation=15, ha="right")
     axes[1].set_ylabel("Fare (BDT)")
     axes[1].set_title("Average Fare by Season (mean ± std, median ◆)")
@@ -361,9 +408,16 @@ def plot_multicollinearity_heatmap(
     fig, ax = plt.subplots(figsize=(11, 9))
     fig.patch.set_facecolor("white")
     sns.heatmap(
-        feat_corr, mask=mask, annot=True, fmt=".2f",
-        cmap="coolwarm", vmin=-1, vmax=1,
-        linewidths=0.4, square=True, ax=ax,
+        feat_corr,
+        mask=mask,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        vmin=-1,
+        vmax=1,
+        linewidths=0.4,
+        square=True,
+        ax=ax,
         annot_kws={"size": 9},
     )
     ax.set_title(
@@ -375,17 +429,10 @@ def plot_multicollinearity_heatmap(
     plt.tight_layout()
     plt.show()
 
-    high_corr = (
-        feat_corr
-        .where(np.tril(np.ones_like(feat_corr, dtype=bool), k=-1))
-        .stack()
-        .reset_index()
-    )
+    high_corr = feat_corr.where(np.tril(np.ones_like(feat_corr, dtype=bool), k=-1)).stack().reset_index()
     high_corr.columns = ["feature_a", "feature_b", "r"]
     high_corr = (
-        high_corr[high_corr["r"].abs() > threshold]
-        .sort_values("r", key=abs, ascending=False)
-        .reset_index(drop=True)
+        high_corr[high_corr["r"].abs() > threshold].sort_values("r", key=abs, ascending=False).reset_index(drop=True)
     )
 
     if high_corr.empty:
@@ -401,6 +448,7 @@ def plot_multicollinearity_heatmap(
 # ---------------------------------------------------------------------------
 # KPI exploration
 # ---------------------------------------------------------------------------
+
 
 def avg_fare_per_airline(
     df: pd.DataFrame,
@@ -422,8 +470,13 @@ def avg_fare_per_airline(
         sign = "+" if row["pct_vs_avg"] >= 0 else ""
         logger.info(
             "  %-28s  mean=%9.0f  median=%9.0f  std=%9.0f  n=%5d  %s%.1f%%",
-            airline, row["mean"], row["median"], row["std"], int(row["count"]),
-            sign, row["pct_vs_avg"],
+            airline,
+            row["mean"],
+            row["median"],
+            row["std"],
+            int(row["count"]),
+            sign,
+            row["pct_vs_avg"],
         )
     return result
 
@@ -450,7 +503,10 @@ def most_popular_routes(
     for _, row in result.iterrows():
         logger.info(
             "  %-12s  flights=%5d  mean_fare=%9.0f  median_fare=%9.0f",
-            row["route"], int(row["flight_count"]), row["mean_fare"], row["median_fare"],
+            row["route"],
+            int(row["flight_count"]),
+            row["mean_fare"],
+            row["median_fare"],
         )
     return result
 
@@ -480,8 +536,15 @@ def seasonal_fare_variation(
         sign = "+" if row["pct_vs_regular"] >= 0 else ""
         logger.info(
             "  %-18s  mean=%9.0f  median=%9.0f  min=%8.0f  max=%9.0f  n=%6d  %s%.1f%% vs %s",
-            season, row["mean"], row["median"], row["min"], row["max"],
-            int(row["count"]), sign, row["pct_vs_regular"], baseline,
+            season,
+            row["mean"],
+            row["median"],
+            row["min"],
+            row["max"],
+            int(row["count"]),
+            sign,
+            row["pct_vs_regular"],
+            baseline,
         )
     return result
 
@@ -508,7 +571,11 @@ def top_expensive_routes(
     for _, row in result.iterrows():
         logger.info(
             "  %-12s  mean=%9.0f  median=%9.0f  max=%9.0f  n=%5d",
-            row["route"], row["mean"], row["median"], row["max"], int(row["count"]),
+            row["route"],
+            row["mean"],
+            row["median"],
+            row["max"],
+            int(row["count"]),
         )
     return result
 
@@ -516,6 +583,7 @@ def top_expensive_routes(
 # ---------------------------------------------------------------------------
 # Stage entry point
 # ---------------------------------------------------------------------------
+
 
 def run(cfg: dict[str, Any]) -> None:
     """Stage entry point — orchestrates all EDA sub-tasks."""
@@ -529,9 +597,7 @@ def run(cfg: dict[str, Any]) -> None:
     )
     target: str = features_cfg.get("target", "fare")
     numerical_cols: list[str] = features_cfg.get("numerical", [])
-    group_cols: list[str] = eda_cfg.get(
-        "group_cols", ["airline", "source", "destination", "seasonality"]
-    )
+    group_cols: list[str] = eda_cfg.get("group_cols", ["airline", "source", "destination", "seasonality"])
     correlation_method: str = eda_cfg.get("correlation_method", "pearson")
 
     logger.info("━━━━━━  EDA: Descriptive Statistics  ━━━━━━")

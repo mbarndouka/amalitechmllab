@@ -1,4 +1,5 @@
 """FastAPI inference server — loads champion model from MLflow registry and serves predictions."""
+
 from __future__ import annotations
 
 import logging
@@ -30,23 +31,24 @@ _feature_names: list[str] = []
 
 # ── Request / Response schemas ─────────────────────────────────────────────────
 
+
 class FareRequest(BaseModel):
-    airline: str                    = Field(example="Emirates")
-    source: str                     = Field(example="DAC")
-    destination: str                = Field(example="DXB")
-    travel_class: str               = Field(example="Economy")
-    aircraft_type: str              = Field(example="Boeing 777")
-    booking_source: str             = Field(example="Online Website")
-    seasonality: str                = Field(example="Regular")
-    stopovers: int                  = Field(example=0, ge=0, le=2)
-    duration: float                 = Field(example=4.5, gt=0)
-    days_left: int                  = Field(example=30, ge=1)
-    departure_hour: int             = Field(example=8, ge=0, le=23)
-    departure_day_of_week: int      = Field(example=2, ge=0, le=6)
-    departure_month: int            = Field(example=6, ge=1, le=12)
-    arrival_hour: int               = Field(example=12, ge=0, le=23)
-    arrival_day_of_week: int        = Field(example=2, ge=0, le=6)
-    arrival_month: int              = Field(example=6, ge=1, le=12)
+    airline: str = Field(example="Emirates")
+    source: str = Field(example="DAC")
+    destination: str = Field(example="DXB")
+    travel_class: str = Field(example="Economy")
+    aircraft_type: str = Field(example="Boeing 777")
+    booking_source: str = Field(example="Online Website")
+    seasonality: str = Field(example="Regular")
+    stopovers: int = Field(example=0, ge=0, le=2)
+    duration: float = Field(example=4.5, gt=0)
+    days_left: int = Field(example=30, ge=1)
+    departure_hour: int = Field(example=8, ge=0, le=23)
+    departure_day_of_week: int = Field(example=2, ge=0, le=6)
+    departure_month: int = Field(example=6, ge=1, le=12)
+    arrival_hour: int = Field(example=12, ge=0, le=23)
+    arrival_day_of_week: int = Field(example=2, ge=0, le=6)
+    arrival_month: int = Field(example=6, ge=1, le=12)
 
 
 class FareResponse(BaseModel):
@@ -55,6 +57,7 @@ class FareResponse(BaseModel):
 
 
 # ── Model loading ──────────────────────────────────────────────────────────────
+
 
 def _load_model_from_registry() -> Any:
     """Load champion model from MLflow registry."""
@@ -75,6 +78,7 @@ def _load_model_from_file() -> Any:
         path = model_dir / name
         if path.exists():
             import joblib
+
             return joblib.load(path), f"file:{path}"
     raise FileNotFoundError(f"No model found in {model_dir}")
 
@@ -101,9 +105,17 @@ async def load_model() -> None:
 
 # ── Feature engineering (inference-time) ──────────────────────────────────────
 
-_NUMERICAL_COLS = ["duration", "days_left", "stopovers",
-                   "departure_hour", "departure_day_of_week", "departure_month",
-                   "arrival_hour", "arrival_day_of_week", "arrival_month"]
+_NUMERICAL_COLS = [
+    "duration",
+    "days_left",
+    "stopovers",
+    "departure_hour",
+    "departure_day_of_week",
+    "departure_month",
+    "arrival_hour",
+    "arrival_day_of_week",
+    "arrival_month",
+]
 
 _LOG_NUMERIC_COLS = ["duration", "days_left"]
 
@@ -115,23 +127,23 @@ def _build_feature_vector(req: FareRequest) -> pd.DataFrame:
     Inference must apply exactly the same transforms, in the same order.
     """
     raw = {
-        "airline":              req.airline,
-        "source":               req.source,
-        "destination":          req.destination,
-        "travel_class":         req.travel_class,
-        "aircraft_type":        req.aircraft_type,
-        "booking_source":       req.booking_source,
-        "seasonality":          req.seasonality,
-        "stopovers":            float(req.stopovers),
-        "duration":             req.duration,
-        "days_left":            float(req.days_left),
-        "departure_hour":       req.departure_hour,
+        "airline": req.airline,
+        "source": req.source,
+        "destination": req.destination,
+        "travel_class": req.travel_class,
+        "aircraft_type": req.aircraft_type,
+        "booking_source": req.booking_source,
+        "seasonality": req.seasonality,
+        "stopovers": float(req.stopovers),
+        "duration": req.duration,
+        "days_left": float(req.days_left),
+        "departure_hour": req.departure_hour,
         "departure_day_of_week": req.departure_day_of_week,
-        "departure_month":      req.departure_month,
-        "arrival_hour":         req.arrival_hour,
-        "arrival_day_of_week":  req.arrival_day_of_week,
-        "arrival_month":        req.arrival_month,
-        "route":                f"{req.source}_{req.destination}",
+        "departure_month": req.departure_month,
+        "arrival_hour": req.arrival_hour,
+        "arrival_day_of_week": req.arrival_day_of_week,
+        "arrival_month": req.arrival_month,
+        "route": f"{req.source}_{req.destination}",
     }
     df = pd.DataFrame([raw])
 
@@ -141,8 +153,16 @@ def _build_feature_vector(req: FareRequest) -> pd.DataFrame:
             df[col] = np.log1p(df[col].clip(lower=0))
 
     # one-hot encode categoricals
-    categorical_cols = ["airline", "source", "destination", "travel_class",
-                        "aircraft_type", "booking_source", "seasonality", "route"]
+    categorical_cols = [
+        "airline",
+        "source",
+        "destination",
+        "travel_class",
+        "aircraft_type",
+        "booking_source",
+        "seasonality",
+        "route",
+    ]
     df = pd.get_dummies(df, columns=categorical_cols, dtype="uint8")
 
     # align to model's expected feature columns
@@ -167,6 +187,7 @@ def _align_features(df: pd.DataFrame, expected_cols: list[str]) -> pd.DataFrame:
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
+
 
 @app.get("/health")
 def health() -> dict:

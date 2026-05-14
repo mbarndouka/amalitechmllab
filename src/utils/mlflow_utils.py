@@ -1,4 +1,5 @@
 """MLflow helpers — experiment setup, run logging, model registration."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -85,6 +86,7 @@ def log_model_run(
 def _log_model(model, model_name: str, feature_names: list[str] | None) -> None:
     """Log model artifact — XGBoost gets native flavor, sklearn gets sklearn flavor."""
     from xgboost import XGBRegressor
+
     if isinstance(model, XGBRegressor):
         mlflow.xgboost.log_model(model, artifact_path="model")
     else:
@@ -123,13 +125,16 @@ def register_best_model(
         return None
 
     best_run = runs[0]
-    best_r2   = best_run.data.metrics.get(metric, 0)
+    best_r2 = best_run.data.metrics.get(metric, 0)
     model_type = best_run.data.tags.get("model_type", "unknown")
-    run_id    = best_run.info.run_id
+    run_id = best_run.info.run_id
 
     logger.info(
         "Best model: %s  %s=%.4f  run_id=%s",
-        model_type, metric, best_r2, run_id,
+        model_type,
+        metric,
+        best_r2,
+        run_id,
     )
 
     model_uri = f"runs:/{run_id}/model"
@@ -140,6 +145,9 @@ def register_best_model(
 
     logger.info(
         "Registered '%s' version %s as @champion  (%s=%.4f)",
-        registry_name, mv.version, metric, best_r2,
+        registry_name,
+        mv.version,
+        metric,
+        best_r2,
     )
     return f"models:/{registry_name}@champion"
