@@ -223,7 +223,8 @@ def run(cfg: dict[str, Any]) -> None:
     mlflow_cfg   = cfg.get("mlflow", {})
     features_dir = data_cfg.get("features_dir", "data/features")
     cv           = eval_cfg.get("cv_folds", 5)
-    log_target   = bool(features_cfg.get("log_target", False))
+    log_target      = bool(features_cfg.get("log_target", False))
+    eval_log_space  = bool(features_cfg.get("eval_log_space", False))
     models_dir   = Path("models")
     reports_dir  = Path("reports")
     models_dir.mkdir(exist_ok=True)
@@ -238,7 +239,9 @@ def run(cfg: dict[str, Any]) -> None:
         )
 
     logger.info("━━━━━━  Step 5: Advanced Modeling & Optimization  ━━━━━━")
-    if log_target:
+    if log_target and eval_log_space:
+        logger.info("log_target=True + eval_log_space=True — metrics computed in log space")
+    elif log_target:
         logger.info("log_target=True — metrics computed in original BDT scale via expm1")
 
     X_train, X_val, X_test, y_train, y_val, y_test = load_features(features_dir)
@@ -270,7 +273,7 @@ def run(cfg: dict[str, Any]) -> None:
         logger.info("── Training: %s ──", name)
         model, best_params = train_fn()
         metrics = _evaluate(model, X_train, X_val, X_test, y_train, y_val, y_test, name,
-                            log_target=log_target)
+                            log_target=(log_target and not eval_log_space))
         joblib.dump(model, models_dir / f"{name}.pkl")
         all_results[name] = {"metrics": metrics, "best_params": best_params}
         logger.info("Saved → models/%s.pkl", name)

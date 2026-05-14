@@ -109,12 +109,15 @@ def run(cfg: dict[str, Any]) -> None:
     features_cfg = cfg.get("features", {})
     mlflow_cfg   = cfg.get("mlflow", {})
     features_dir = data_cfg.get("features_dir", "data/features")
-    log_target   = bool(features_cfg.get("log_target", False))
+    log_target      = bool(features_cfg.get("log_target", False))
+    eval_log_space  = bool(features_cfg.get("eval_log_space", False))
     models_dir   = "models"
     reports_dir  = "reports"
 
     logger.info("━━━━━━  Model Training: Linear Regression Baseline  ━━━━━━")
-    if log_target:
+    if log_target and eval_log_space:
+        logger.info("log_target=True + eval_log_space=True — metrics computed in log space")
+    elif log_target:
         logger.info("log_target=True — metrics will be computed in original BDT scale via expm1")
 
     X_train, X_val, X_test, y_train, y_val, y_test = load_features(features_dir)
@@ -122,8 +125,9 @@ def run(cfg: dict[str, Any]) -> None:
     model = train_linear_regression(X_train, y_train)
 
     logger.info("── Evaluation ──")
+    # inverse-transform only when log_target=True AND we want BDT-scale metrics
     metrics = evaluate_all_splits(model, X_train, X_val, X_test, y_train, y_val, y_test,
-                                  log_target=log_target)
+                                  log_target=(log_target and not eval_log_space))
 
     # Gap check — flag possible overfitting
     train_r2 = metrics["train"]["r2"]

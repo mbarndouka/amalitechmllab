@@ -20,12 +20,16 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
     return {"r2": round(r2, 4), "mae": round(mae, 2), "rmse": round(rmse, 2), "mape": round(mape, 2)}
 
 
+def _fmt(v: float) -> str:
+    return f"{v:.4f}" if v < 10 else f"{v:,.0f}"
+
+
 def log_metrics(metrics: dict[str, float], split: str) -> None:
     logger.info(
         "[%s]  R²=%.4f  MAE=%s  RMSE=%s  MAPE=%.2f%%",
         split.upper(),
         metrics["r2"],
-        f"{metrics['mae']:,.0f}",
-        f"{metrics['rmse']:,.0f}",
+        _fmt(metrics["mae"]),
+        _fmt(metrics["rmse"]),
         metrics["mape"],
     )
