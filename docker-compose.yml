@@ -1,0 +1,46 @@
+services:
+
+  train:
+    build: .
+    command: ["python", "main.py", "--stage", "train"]
+    environment: &pipeline-env
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
+      MLFLOW_REGISTRY_NAME: FarePredictor
+      MODELS_DIR: /app/models
+      FEATURES_DIR: /app/data/features
+    volumes: &pipeline-volumes
+      - ./data:/app/data:ro
+      - ./models:/app/models
+      - ./reports:/app/reports
+      - ./mlflow.db:/app/mlflow.db
+      - ./mlartifacts:/app/mlartifacts
+      - ./logs:/app/logs
+
+  advanced:
+    build: .
+    command: ["python", "main.py", "--stage", "advanced"]
+    environment: *pipeline-env
+    volumes: *pipeline-volumes
+
+  train-advanced:
+    build: .
+    command: ["sh", "-c", "python main.py --stage train && python main.py --stage advanced"]
+    environment: *pipeline-env
+    volumes: *pipeline-volumes
+
+  # Inference API — POST /predict at http://localhost:8000
+  # MLflow UI: run locally with: uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
+      MLFLOW_REGISTRY_NAME: FarePredictor
+      MODELS_DIR: /app/models
+      FEATURES_DIR: /app/data/features
+    volumes:
+      - ./models:/app/models:ro
+      - ./data/features:/app/data/features:ro
+      - ./mlflow.db:/app/mlflow.db:ro
+      - ./mlartifacts:/app/mlartifacts:ro

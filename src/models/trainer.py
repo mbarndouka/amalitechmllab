@@ -107,6 +107,7 @@ def run(cfg: dict[str, Any]) -> None:
     """Stage entry point — train baseline linear regression and save artifacts."""
     data_cfg     = cfg.get("data", {})
     features_cfg = cfg.get("features", {})
+    mlflow_cfg   = cfg.get("mlflow", {})
     features_dir = data_cfg.get("features_dir", "data/features")
     log_target   = bool(features_cfg.get("log_target", False))
     models_dir   = "models"
@@ -138,5 +139,20 @@ def run(cfg: dict[str, Any]) -> None:
         logger.info("Train/val R² gap within acceptable range (%.4f vs %.4f).", train_r2, val_r2)
 
     save_artifacts(model, metrics, X_train.columns.tolist(), models_dir, reports_dir)
+
+    # Log to MLflow if enabled
+    if mlflow_cfg.get("enabled", True):
+        from utils.mlflow_utils import log_model_run, setup_experiment
+        setup_experiment(
+            tracking_uri=mlflow_cfg.get("tracking_uri", "sqlite:///mlflow.db"),
+            artifact_location=mlflow_cfg.get("artifact_location", "mlartifacts"),
+        )
+        log_model_run(
+            model_name="linear_regression",
+            model=model,
+            params={"log_target": log_target},
+            metrics=metrics,
+            feature_names=X_train.columns.tolist(),
+        )
 
     logger.info("━━━━━━  Training complete  ━━━━━━")

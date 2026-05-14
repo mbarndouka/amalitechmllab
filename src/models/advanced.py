@@ -220,6 +220,7 @@ def run(cfg: dict[str, Any]) -> None:
     data_cfg     = cfg.get("data", {})
     eval_cfg     = cfg.get("evaluation", {})
     features_cfg = cfg.get("features", {})
+    mlflow_cfg   = cfg.get("mlflow", {})
     features_dir = data_cfg.get("features_dir", "data/features")
     cv           = eval_cfg.get("cv_folds", 5)
     log_target   = bool(features_cfg.get("log_target", False))
@@ -227,6 +228,14 @@ def run(cfg: dict[str, Any]) -> None:
     reports_dir  = Path("reports")
     models_dir.mkdir(exist_ok=True)
     reports_dir.mkdir(exist_ok=True)
+
+    use_mlflow = mlflow_cfg.get("enabled", True)
+    if use_mlflow:
+        from utils.mlflow_utils import log_model_run, register_best_model, setup_experiment
+        setup_experiment(
+            tracking_uri=mlflow_cfg.get("tracking_uri", "sqlite:///mlflow.db"),
+            artifact_location=mlflow_cfg.get("artifact_location", "mlartifacts"),
+        )
 
     logger.info("━━━━━━  Step 5: Advanced Modeling & Optimization  ━━━━━━")
     if log_target:
@@ -266,6 +275,15 @@ def run(cfg: dict[str, Any]) -> None:
         all_results[name] = {"metrics": metrics, "best_params": best_params}
         logger.info("Saved → models/%s.pkl", name)
 
+        if use_mlflow:
+            log_model_run(
+                model_name=name,
+                model=model,
+                params=best_params,
+                metrics=metrics,
+                feature_names=list(X_train.columns),
+            )
+
     # Save comparison table
     comparison_df = build_comparison_table(all_results)
     comparison_path = reports_dir / "model_comparison.json"
@@ -273,6 +291,16 @@ def run(cfg: dict[str, Any]) -> None:
         json.dumps({k: v for k, v in all_results.items()}, indent=2, default=str)
     )
     logger.info("Comparison saved → %s", comparison_path)
+
+    # Register best model to MLflow Model Registry
+    if use_mlflow:
+        registry_name = mlflow_cfg.get("registry_name", "FarePredictor")
+        champion_uri = register_best_model(
+            metric="test_r2",
+            registry_name=registry_name,
+        )
+        if champion_uri:
+            logger.info("Champion model registered → %s", champion_uri)
 
     # Summary — val split ranked by R²
     val_summary = (
