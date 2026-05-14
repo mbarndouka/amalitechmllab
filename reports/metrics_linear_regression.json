@@ -1,6 +1,6 @@
 {
   "model": "LinearRegression",
-  "n_features": 76,
+  "n_features": 77,
   "feature_names": [
     "aircraft_type_Airbus A320",
     "aircraft_type_Airbus A350",
@@ -77,27 +77,28 @@
     "stopovers",
     "travel_class_Business",
     "travel_class_Economy",
-    "travel_class_First Class"
+    "travel_class_First Class",
+    "route_te"
   ],
   "metrics": {
     "train": {
-      "r2": 0.574,
-      "mae": 40636.84,
-      "rmse": 53468.71,
-      "mape": 252.19
+      "r2": 0.8936,
+      "mae": 0.35,
+      "rmse": 0.46,
+      "mape": 3.34
     },
     "val": {
-      "r2": 0.5731,
-      "mae": 40153.97,
-      "rmse": 52857.57,
-      "mape": 253.58
+      "r2": 0.8907,
+      "mae": 0.36,
+      "rmse": 0.47,
+      "mape": 3.4
     },
     "test": {
-      "r2": 0.57,
-      "mae": 40680.62,
-      "rmse": 53537.22,
-      "mape": 251.8
+      "r2": 0.8931,
+      "mae": 0.35,
+      "rmse": 0.46,
+      "mape": 3.34
     }
   },
-  "intercept": 99392.3365
+  "intercept": 6.6357
 }
