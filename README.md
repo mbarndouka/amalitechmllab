@@ -119,6 +119,52 @@ uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 ---
 
+## MLflow UI
+
+Browse experiments, compare runs, and inspect artifacts:
+
+```bash
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+Open `http://localhost:5000`. Port conflicts? Use `--port`:
+
+```bash
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001
+```
+
+What you'll find:
+- All runs grouped under `flight_fare_prediction` experiment
+- Metrics per run: R², RMSE, MAE, MAPE
+- Hyperparameters logged (Optuna trials, grid search values)
+- Registered model versions under **Models → flight_fare_predictor**
+
+---
+
+## Streamlit App
+
+Interactive UI for fare prediction with model comparison dashboard:
+
+```bash
+uv run streamlit run app.py
+```
+
+Opens at `http://localhost:8501`. Features:
+- Select model (MLflow registry, local pkl, or fallback)
+- Input flight details via sidebar form
+- Predicted fare in BDT with model source shown
+- Model comparison table (R², MAPE across all trained models)
+
+Custom port:
+
+```bash
+uv run streamlit run app.py --server.port 8502
+```
+
+> **Note:** Run the full pipeline (`uv run python main.py`) before launching the app — it needs trained models and `reports/model_comparison.json`.
+
+---
+
 ## Key Business Findings
 
 - **Eid season** drives a **42% fare premium** over regular season

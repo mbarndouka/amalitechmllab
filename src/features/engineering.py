@@ -63,6 +63,7 @@ class FeatureSet:
     y_test: pd.Series
     scaler: StandardScaler
     feature_names: tuple[str, ...]
+    route_te_map: dict[str, dict[str, float]]
 
 
 # ── Pure transforms (df → df, no mutation) ────────────────────────────────────
@@ -193,7 +194,7 @@ def target_encode(
     X_val: pd.DataFrame,
     X_test: pd.DataFrame,
     cols: tuple[str, ...],
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, dict[str, float]]]:
     """Replace high-cardinality categorical cols with target mean (train-only stats → no leakage).
 
     WHY: Route has 100+ OHE columns but is best represented as one numeric
@@ -201,6 +202,7 @@ def target_encode(
     Unknown categories (unseen in train) fall back to global mean.
     """
     global_mean = float(y_train.mean())
+    te_maps: dict[str, dict[str, float]] = {}
     X_train = X_train.copy()
     X_val = X_val.copy()
     X_test = X_test.copy()
@@ -217,9 +219,10 @@ def target_encode(
         X_train.drop(columns=[col], inplace=True)
         X_val.drop(columns=[col], inplace=True)
         X_test.drop(columns=[col], inplace=True)
+        te_maps[col] = {**means.to_dict(), "__global__": global_mean}
         logger.info("Target-encoded '%s' → '%s'  (%d unique values)", col, te_col, len(means))
 
-    return X_train, X_val, X_test
+    return X_train, X_val, X_test, te_maps
 
 
 def engineer(df: pd.DataFrame, cfg: dict[str, Any]) -> FeatureSet:
@@ -271,8 +274,9 @@ def engineer(df: pd.DataFrame, cfg: dict[str, Any]) -> FeatureSet:
         X_test = log_transform_numerics(X_test, log_numeric_cols)
 
     # 6.6 — target-encode high-cardinality categoricals (after split — no leakage)
+    te_map: dict[str, dict[str, float]] = {}
     if target_encode_cols:
-        X_train, X_val, X_test = target_encode(X_train, y_train, X_val, X_test, target_encode_cols)
+        X_train, X_val, X_test, te_map = target_encode(X_train, y_train, X_val, X_test, target_encode_cols)
         feature_names = tuple(X_train.columns)
 
     # 7 — fit scaler on train, apply to all three splits (no leakage)
@@ -287,6 +291,7 @@ def engineer(df: pd.DataFrame, cfg: dict[str, Any]) -> FeatureSet:
         y_test=y_test,
         scaler=scaler,
         feature_names=feature_names,
+        route_te_map=te_map,
     )
 
 
@@ -306,6 +311,11 @@ def save_feature_set(fset: FeatureSet, output_dir: str | Path) -> None:
 
     with open(out / "scaler.pkl", "wb") as fh:
         pickle.dump(fset.scaler, fh)
+
+    if fset.route_te_map:
+        with open(out / "route_te_map.pkl", "wb") as fh:
+            pickle.dump(fset.route_te_map, fh)
+        logger.info("Saved route_te_map → %s/route_te_map.pkl", out)
 
     logger.info(
         "Saved feature set → %s  (train=%s  val=%s  test=%s)",
