@@ -74,10 +74,11 @@ uv run python main.py
 
 ```bash
 uv run python main.py --stage clean       # data cleaning
-uv run python main.py --stage features    # feature engineering
+uv run python main.py --stage engineer    # feature engineering
 uv run python main.py --stage train       # baseline model (Linear Regression)
 uv run python main.py --stage advanced    # Ridge, Lasso, Tree, RF, GBT, XGBoost, Stacking
-uv run python main.py --stage insights    # feature importance + business report
+uv run python main.py --stage tune        # Optuna hyperparameter search (XGBoost, 100 trials)
+uv run python main.py --stage interpret   # feature importance + business report
 ```
 
 ---
@@ -162,6 +163,89 @@ uv run streamlit run app.py --server.port 8502
 ```
 
 > **Note:** Run the full pipeline (`uv run python main.py`) before launching the app — it needs trained models and `reports/model_comparison.json`.
+
+---
+
+## Airflow Orchestration
+
+The full pipeline runs automatically every Monday at 02:00 UTC via an Airflow DAG (`ml_training_pipeline`) defined in `amalitechairflowdbtlab/dags/ml_training_pipeline.py`. Each stage runs as an isolated Docker container sharing host volumes so artifacts persist between stages.
+
+### DAG stages (in order)
+
+| Task | Stage | What it does |
+|---|---|---|
+| `stage_clean` | clean | Remove leakage columns, fix types, handle missing values |
+| `stage_engineer` | engineer | Encode features, log-transform target, train/val/test split |
+| `stage_train` | train | Linear Regression baseline |
+| `stage_advanced` | advanced | Ridge, Lasso, Tree, RF, GBT, XGBoost, Stacking |
+| `stage_tune` | tune | Optuna hyperparameter search for XGBoost (100 trials) |
+| `stage_interpret` | interpret | SHAP values, feature importance, business insights report |
+
+### Trigger manually
+
+```bash
+# from amalitechairflowdbtlab/
+docker exec <airflow-apiserver-container> airflow dags trigger ml_training_pipeline
+```
+
+### Artifacts written (host paths)
+
+- `amalitechmllab/models/` — trained `.pkl` files
+- `amalitechmllab/mlflow.db` — experiment tracking DB
+- `amalitechmllab/mlartifacts/` — MLflow model artifacts
+- `amalitechmllab/reports/` — metrics JSON, stakeholder report
+
+> **Note:** The Airflow worker container requires access to `/var/run/docker.sock` with the host Docker group GID. This is configured via `group_add` in `amalitechairflowdbtlab/docker-compose.yaml`.
+
+---
+
+## Docker — Full Stack (ML lab + Airflow lab)
+
+All services run in Docker and communicate over a shared bridge network (`amalitech-net`). This lets Airflow DAGs call the ML prediction API by container name.
+
+### Port map
+
+| Service | URL |
+|---|---|
+| FastAPI prediction API | `http://localhost:8000` |
+| Streamlit UI | `http://localhost:8501` |
+| MLflow UI | `http://localhost:5000` |
+| Airflow UI | `http://localhost:8080` |
+
+### 1. Create shared network (once)
+
+```bash
+docker network create amalitech-net
+```
+
+### 2. Start ML lab services
+
+```bash
+# from amalitechmllab/
+docker compose up api mlflow-ui streamlit
+```
+
+### 3. Start Airflow lab
+
+```bash
+# from amalitechairflowdbtlab/
+docker compose up
+```
+
+### 4. Call ML API from Airflow DAG
+
+Inside any Airflow DAG or operator, use the container name as hostname:
+
+```python
+import requests
+
+response = requests.post(
+    "http://mllab-api:8000/predict",   # resolved via amalitech-net
+    json={...}
+)
+```
+
+> **Note:** The `mllab-api` hostname is the Docker Compose service name `api` — prefix with the compose project name if needed (`amalitechmllab-api-1`). Use `docker network inspect amalitech-net` to verify container names.
 
 ---
 

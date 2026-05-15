@@ -13,6 +13,7 @@ RUN uv sync --no-dev --frozen --no-install-project
 
 # Copy application code used by both training jobs and the API
 COPY main.py ./
+COPY app.py ./
 COPY src/ ./src/
 COPY configs/ ./configs/
 
@@ -27,7 +28,7 @@ ENV MLFLOW_TRACKING_URI=sqlite:////app/mlflow.db
 
 RUN mkdir -p /app/data /app/models /app/reports /app/mlartifacts /app/logs
 
-EXPOSE 8000
+EXPOSE 8000 8501 5000
 
 # Use venv's uvicorn directly — avoids uv re-triggering project build at startup
 CMD ["uvicorn", "serving.predict:app", "--host", "0.0.0.0", "--port", "8000"]
