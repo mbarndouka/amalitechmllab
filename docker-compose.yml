@@ -82,6 +82,7 @@ services:
     volumes:
       - ./models:/app/models:ro
       - ./data/features:/app/data/features:ro
+      - ./data/processed:/app/data/processed:ro
       - ./mlflow.db:/app/mlflow.db:ro
       - ./mlartifacts:/app/mlartifacts:ro
       - ./reports:/app/reports:ro
