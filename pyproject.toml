@@ -28,6 +28,7 @@ dependencies = [
     "fastapi>=0.136.1",
     "uvicorn[standard]>=0.46.0",
     "pydantic>=2.13.4",
+    "streamlit>=1.35",
 ]
 
 [project.optional-dependencies]

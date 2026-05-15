@@ -2,6 +2,7 @@ services:
 
   train:
     build: .
+    image: amalitech-mllab:latest
     command: ["python", "main.py", "--stage", "train"]
     environment: &pipeline-env
       MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
@@ -13,8 +14,8 @@ services:
       - ./models:/app/models
       - ./reports:/app/reports
       - ./mlflow.db:/app/mlflow.db
-      - ./mlartifacts:/app/mlartifacts
       - ./logs:/app/logs
+      - ./mlartifacts:/home/mbarndouka/Documents/amalitechmllab/mlartifacts
 
   advanced:
     build: .
@@ -29,7 +30,6 @@ services:
     volumes: *pipeline-volumes
 
   # Inference API — POST /predict at http://localhost:8000
-  # MLflow UI: run locally with: uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
   api:
     build: .
     ports:
@@ -44,3 +44,52 @@ services:
       - ./data/features:/app/data/features:ro
       - ./mlflow.db:/app/mlflow.db:ro
       - ./mlartifacts:/app/mlartifacts:ro
+    networks:
+      - default
+      - amalitech-net
+
+  # MLflow experiment tracking UI — http://localhost:5000
+  mlflow-ui:
+    build: .
+    command: ["mlflow", "ui", "--backend-store-uri", "sqlite:////app/mlflow.db",
+              "--host", "0.0.0.0", "--port", "5000"]
+    ports:
+      - "5000:5000"
+    environment:
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
+    volumes:
+      - ./mlflow.db:/app/mlflow.db:ro
+      # Mount at same absolute path as host so artifact URIs in mlflow.db resolve correctly
+      - ./mlartifacts:/home/mbarndouka/Documents/amalitechmllab/mlartifacts:ro
+    networks:
+      - default
+      - amalitech-net
+
+  # Streamlit prediction UI — http://localhost:8501
+  streamlit:
+    build: .
+    command: ["streamlit", "run", "app.py",
+              "--server.address", "0.0.0.0",
+              "--server.port", "8501",
+              "--server.headless", "true"]
+    ports:
+      - "8501:8501"
+    environment:
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow.db
+      MLFLOW_REGISTRY_NAME: FarePredictor
+      MODELS_DIR: /app/models
+      FEATURES_DIR: /app/data/features
+    volumes:
+      - ./models:/app/models:ro
+      - ./data/features:/app/data/features:ro
+      - ./data/processed:/app/data/processed:ro
+      - ./mlflow.db:/app/mlflow.db:ro
+      - ./mlartifacts:/app/mlartifacts:ro
+      - ./reports:/app/reports:ro
+    networks:
+      - default
+      - amalitech-net
+
+networks:
+  amalitech-net:
+    external: true
